@@ -1,0 +1,62 @@
+{
+  "model_version": "v1.0.0-xgb",
+  "algorithm": "XGBoost (Regressor + Multi-class Classifier)",
+  "features": [
+    "hydrogen",
+    "methane",
+    "co",
+    "co2",
+    "ethylene",
+    "ethane",
+    "acetylene",
+    "power_factor",
+    "dielectric_rigidity",
+    "water_content",
+    "temperature",
+    "oil_temperature",
+    "vibration",
+    "load_percent",
+    "voltage",
+    "current",
+    "methane_hydrogen_ratio",
+    "ethylene_ethane_ratio",
+    "acetylene_ethylene_ratio",
+    "thermal_stress_index"
+  ],
+  "fault_classes": [
+    "Normal / Low Risk",
+    "Insulation Degradation",
+    "Thermal Overheating",
+    "Dielectric Breakdown",
+    "Mechanical / Vibration Stress",
+    "Arcing / Partial Discharge"
+  ],
+  "metrics": {
+    "rmse": 0.07965212838797375,
+    "r2_score": 0.5990645628462683,
+    "accuracy": 0.9625
+  },
+  "feature_importances": {
+    "acetylene": 0.20186591148376465,
+    "oil_temperature": 0.1112709790468216,
+    "thermal_stress_index": 0.10574741661548615,
+    "ethylene": 0.10516088455915451,
+    "temperature": 0.08063362538814545,
+    "load_percent": 0.07456694543361664,
+    "hydrogen": 0.04777338728308678,
+    "acetylene_ethylene_ratio": 0.030789144337177277,
+    "water_content": 0.025892185047268867,
+    "ethylene_ethane_ratio": 0.025798244401812553,
+    "methane_hydrogen_ratio": 0.02458316460251808,
+    "power_factor": 0.02366301417350769,
+    "current": 0.022534208372235298,
+    "ethane": 0.022180747240781784,
+    "methane": 0.021230878308415413,
+    "co2": 0.01746337302029133,
+    "co": 0.01615900732576847,
+    "dielectric_rigidity": 0.015608543530106544,
+    "vibration": 0.014682920649647713,
+    "voltage": 0.012395411729812622
+  },
+  "trained_samples": 800
+}
