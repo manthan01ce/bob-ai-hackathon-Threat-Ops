@@ -102,17 +102,22 @@ def load_and_prepare_dataset():
         thermal_stress = max(0.0, (oil_temp - 45.0) / 45.0)
 
         # Compute Ground Truth Failure Probability based on physics & Health Index
-        gas_risk = min(1.0, (h2 / 180.0) * 0.25 + (c2h4 / 120.0) * 0.35 + (c2h2 / 30.0) * 0.4)
+        gas_risk = min(1.0, (h2 / 180.0) * 0.25 + (c2h4 / 120.0) * 0.35 + (c2h2 / 15.0) * 0.5)
         thermal_risk = min(1.0, thermal_stress * 0.6 + (load_pct / 100.0 > 1.0) * 0.4)
         aging_risk = max(0.0, min(1.0, (100.0 - health_idx) / 100.0))
+        vib_risk = min(1.0, max(0.0, vibration - 2.0) / 4.0)
 
-        failure_prob = round(float(0.40 * aging_risk + 0.35 * gas_risk + 0.25 * thermal_risk), 4)
+        max_risk = max(gas_risk, thermal_risk, aging_risk, vib_risk)
+        avg_risk = 0.40 * aging_risk + 0.35 * gas_risk + 0.25 * thermal_risk
+        failure_prob = round(float(0.55 * max_risk + 0.45 * avg_risk), 4)
+
+        if c2h2 > 15.0 or thermal_stress > 0.85 or (c2h4 > 100 and h2 > 100) or vibration > 5.5:
+            failure_prob = max(failure_prob, round(float(np.random.uniform(0.82, 0.98)), 4))
+
         failure_prob = max(0.01, min(0.99, failure_prob))
 
         # Determine Failure Mode Label
-        if failure_prob < 0.25:
-            fault_mode = 0  # Normal / Low Risk
-        elif c2h2 > 15.0 or (c2h2_c2h4 > 1.0 and failure_prob > 0.6):
+        if c2h2 > 12.0 or (c2h2_c2h4 > 1.0 and failure_prob > 0.6):
             fault_mode = 5  # Arcing / Partial Discharge
         elif c2h4_c2h6 > 3.0 or thermal_stress > 0.75:
             fault_mode = 2  # Thermal Overheating
@@ -120,8 +125,10 @@ def load_and_prepare_dataset():
             fault_mode = 3  # Dielectric Breakdown
         elif vibration > 5.0:
             fault_mode = 4  # Mechanical / Vibration Stress
-        else:
+        elif failure_prob > 0.40:
             fault_mode = 1  # Insulation Degradation
+        else:
+            fault_mode = 0  # Normal / Low Risk
 
         records.append({
             "hydrogen": h2,

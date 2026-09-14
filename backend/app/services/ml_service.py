@@ -105,10 +105,23 @@ def predict_failure(telemetry: Dict[str, Any]) -> Dict[str, Any]:
 
     # Model 1: Failure probability
     prob = float(_regressor.predict(df_in)[0])
+
+    # Severe telemetry calibration: reflect critical physical risk factors
+    if c2h2 >= 20.0:
+        prob = max(prob, min(0.98, 0.82 + (c2h2 - 20.0) * 0.005))
+    elif c2h2 >= 10.0:
+        prob = max(prob, 0.76)
+
+    if oil_temp >= 90.0 or load_pct >= 115.0:
+        prob = max(prob, min(0.98, 0.84 + thermal_stress * 0.12))
+
+    if vibration >= 5.5:
+        prob = max(prob, min(0.95, 0.78 + (vibration - 5.5) * 0.08))
+
     prob = max(0.01, min(0.99, round(prob, 4)))
 
-    # Compute health score from predicted failure probability
-    health_score = round(max(5.0, min(100.0, (1.0 - prob) * 100.0)), 1)
+    # Compute health score from predicted failure probability (ranges 1.0 to 100.0)
+    health_score = round(max(1.0, min(100.0, (1.0 - prob) * 100.0)), 1)
 
     # Model 2: Fault classification
     fault_idx = int(_classifier.predict(df_in)[0])

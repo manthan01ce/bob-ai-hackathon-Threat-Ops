@@ -291,8 +291,23 @@ export default function GridMap({
       });
 
       marker.on("click", () => {
+        lastCenteredAssetIdRef.current = null;
         if (onSelectRef.current) {
           onSelectRef.current(asset.asset_id);
+        }
+      });
+
+      marker.on("popupopen", (e: any) => {
+        const popupNode = e.popup?.getElement();
+        if (popupNode) {
+          popupNode.style.cursor = "pointer";
+          popupNode.onclick = (evt: MouseEvent) => {
+            evt.stopPropagation();
+            lastCenteredAssetIdRef.current = null;
+            if (onSelectRef.current) {
+              onSelectRef.current(asset.asset_id);
+            }
+          };
         }
       });
 
@@ -304,12 +319,30 @@ export default function GridMap({
     });
   };
 
-  // Update markers when props change
+  const lastCenteredAssetIdRef = useRef<string | null>(null);
+
+  // Update markers when props change and fly to selected asset ONLY when selection changes
   useEffect(() => {
     if (!mapInstanceRef.current || !markersLayerRef.current) return;
     import("leaflet").then((leafletModule) => {
       const L = leafletModule.default || leafletModule;
       renderMapContent(L, markersLayerRef.current, linesLayerRef.current, markers, selectedAssetId, showPowerLines);
+
+      if (
+        selectedAssetId &&
+        selectedAssetId !== lastCenteredAssetIdRef.current &&
+        markers &&
+        markers.length > 0
+      ) {
+        lastCenteredAssetIdRef.current = selectedAssetId;
+        const target = markers.find((m) => m.asset_id === selectedAssetId);
+        if (target && target.latitude && target.longitude) {
+          mapInstanceRef.current.flyTo([target.latitude, target.longitude], 11.5, {
+            animate: true,
+            duration: 1.2,
+          });
+        }
+      }
     });
   }, [markers, selectedAssetId, showPowerLines]);
 

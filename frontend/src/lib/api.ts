@@ -82,4 +82,40 @@ export async function runCustomPrediction(payload: Record<string, any>) {
   return res.json();
 }
 
+export async function fetchMaintenance() {
+  const res = await fetch(`${API_BASE}/maintenance/`);
+  if (!res.ok) throw new Error("Failed to fetch maintenance");
+  return res.json();
+}
+
+export async function createWorkOrder(payload: { asset_id: string; maintenance_type: string; technician: string; notes?: string }) {
+  const res = await fetch(`${API_BASE}/maintenance/create`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Failed to create work order");
+  return res.json();
+}
+
+export async function dispatchCrew(crewId: string, assetId?: string) {
+  const url = assetId ? `${API_BASE}/crews/${crewId}/dispatch?asset_id=${assetId}` : `${API_BASE}/crews/${crewId}/dispatch`;
+  const res = await fetch(url, { method: "POST" });
+  if (!res.ok) throw new Error("Failed to dispatch crew");
+  return res.json();
+}
+
+export async function resetCrew(crewId: string) {
+  const res = await fetch(`${API_BASE}/crews/${crewId}/reset`, { method: "POST" });
+  if (!res.ok) throw new Error("Failed to reset crew");
+  return res.json();
+}
+
+export async function fetchSensorStream(limit: number = 50) {
+  const res = await fetch(`${API_BASE}/sensors/stream?limit=${limit}`);
+  if (!res.ok) throw new Error("Failed to fetch sensor stream");
+  return res.json();
+}
+
+
 

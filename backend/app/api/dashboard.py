@@ -88,7 +88,7 @@ def get_risk_map(db: Session = Depends(get_db)):
 
 @router.get("/top-risk")
 def get_top_risk_assets(limit: int = 10, db: Session = Depends(get_db)):
-    """Top N unique assets ranked by overall risk score."""
+    """Top N unique assets ranked by Impact-Adjusted Risk (combines intrinsic risk + population exposure)."""
     subq_risk = (
         db.query(RiskScore.asset_id, func.max(RiskScore.id).label("latest_risk_id"))
         .group_by(RiskScore.asset_id)
@@ -99,6 +99,7 @@ def get_top_risk_assets(limit: int = 10, db: Session = Depends(get_db)):
         .group_by(Prediction.asset_id)
         .subquery()
     )
+    # Fetch a larger pool to compute impact-adjusted ranking
     results = (
         db.query(Asset, RiskScore, Prediction)
         .join(RiskScore, Asset.id == RiskScore.asset_id)
@@ -106,18 +107,32 @@ def get_top_risk_assets(limit: int = 10, db: Session = Depends(get_db)):
         .outerjoin(subq_pred, Asset.id == subq_pred.c.asset_id)
         .outerjoin(Prediction, Prediction.id == subq_pred.c.latest_pred_id)
         .order_by(RiskScore.overall_risk_score.desc())
-        .limit(limit * 2)
+        .limit(limit * 5)
         .all()
     )
 
+    # Deduplicate by asset_id
     seen = set()
     deduped = []
     for a, r, p in results:
         if a.asset_id not in seen:
             seen.add(a.asset_id)
             deduped.append((a, r, p))
-            if len(deduped) >= limit:
-                break
+
+    # Find max customers_served across this pool for normalization
+    max_customers = max((a.customers_served or 0 for a, r, p in deduped), default=1) or 1
+
+    # Compute Impact-Adjusted Risk = 60% intrinsic risk + 40% normalized population score
+    scored = []
+    for a, r, p in deduped:
+        risk_score = r.overall_risk_score or 0
+        customers = a.customers_served or 0
+        population_normalized = (customers / max_customers) * 100  # scale 0-100
+        impact_adjusted_risk = round(0.6 * risk_score + 0.4 * population_normalized, 1)
+        scored.append((a, r, p, impact_adjusted_risk))
+
+    # Sort by impact-adjusted risk descending (this is the new priority ranking)
+    scored.sort(key=lambda x: x[3], reverse=True)
 
     return [
         {
@@ -126,13 +141,14 @@ def get_top_risk_assets(limit: int = 10, db: Session = Depends(get_db)):
             "asset_type": a.asset_type,
             "risk_level": r.risk_level,
             "overall_risk_score": r.overall_risk_score,
+            "impact_adjusted_risk": impact_adjusted,
             "failure_probability": r.failure_probability,
             "impact_score": r.impact_score,
             "health_score": p.health_score if p else 50.0,
             "customers_served": a.customers_served,
             "district": a.district,
         }
-        for idx, (a, r, p) in enumerate(deduped)
+        for idx, (a, r, p, impact_adjusted) in enumerate(scored[:limit])
     ]
 
 
