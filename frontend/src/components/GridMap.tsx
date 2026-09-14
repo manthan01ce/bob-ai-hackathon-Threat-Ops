@@ -3,78 +3,92 @@
 import React, { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 
-const MAPTILER_KEY = "CRFoY3RXgAloQLarTcRL";
+// ── API Key ───────────────────────────────────────────────────────────────────
+// Read from NEXT_PUBLIC_MAPTILER_KEY env var; fall back to Carto dark when absent.
+const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY || "";
 
-// Tile Styles
-const TILE_STYLES: Record<string, { name: string; url: string; subdomains?: string[] }> = {
-  dataviz: {
-    name: "Dark SCADA",
-    url: `https://api.maptiler.com/maps/dataviz-dark/256/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
-  },
-  hybrid: {
-    name: "Satellite Hybrid",
-    url: `https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}.jpg?key=${MAPTILER_KEY}`,
-  },
-  streets: {
-    name: "Highways & Grid",
-    url: `https://api.maptiler.com/maps/streets-v2-dark/256/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
-  },
+const CARTO_DARK = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+
+function buildTileUrl(style: string): string {
+  if (!MAPTILER_KEY) return CARTO_DARK;
+  const urls: Record<string, string> = {
+    dataviz: `https://api.maptiler.com/maps/dataviz-dark/256/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
+    hybrid:  `https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}.jpg?key=${MAPTILER_KEY}`,
+    streets: `https://api.maptiler.com/maps/streets-v2-dark/256/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
+  };
+  return urls[style] || CARTO_DARK;
+}
+
+// Tile style display names
+const TILE_STYLES: Record<string, string> = {
+  dataviz: "🌑 Dark SCADA",
+  hybrid:  "🛰️ Satellite",
+  streets: "🗺️ Highways",
 };
 
 const riskColor: Record<string, string> = {
   CRITICAL: "#e22718",
-  HIGH: "#f48c06",
-  MEDIUM: "#f4b400",
-  LOW: "#0fa336",
+  HIGH:     "#f48c06",
+  MEDIUM:   "#f4b400",
+  LOW:      "#0fa336",
 };
 
+export interface GridMapMarker {
+  asset_id: string;
+  asset_type?: string;
+  name?: string;
+  latitude: number;
+  longitude: number;
+  risk_level: string;
+  overall_risk_score?: number;
+  failure_probability?: number;
+  customers_served?: number;
+  voltage_kv?: number;
+  capacity_mva?: number;
+  district?: string;
+}
+
 interface GridMapProps {
-  markers: Array<{
-    asset_id: string;
-    asset_type?: string;
-    name?: string;
-    latitude: number;
-    longitude: number;
-    risk_level: string;
-    overall_risk_score?: number;
-    customers_served?: number;
-    voltage_kv?: number;
-    capacity_mva?: number;
-    district?: string;
-  }>;
+  markers: GridMapMarker[];
   selectedAssetId?: string;
   onSelectAsset?: (assetId: string) => void;
+  onInspectAsset?: (assetId: string) => void;
 }
 
 export default function GridMap({
   markers = [],
   selectedAssetId,
   onSelectAsset,
+  onInspectAsset,
 }: GridMapProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
+  const containerRef    = useRef<HTMLDivElement>(null);
+  const mapInstanceRef  = useRef<any>(null);
   const markersLayerRef = useRef<any>(null);
-  const linesLayerRef = useRef<any>(null);
-  const tileLayerRef = useRef<any>(null);
-  const [currentStyle, setCurrentStyle] = useState<string>("dataviz");
-  const [showPowerLines, setShowPowerLines] = useState<boolean>(true);
+  const linesLayerRef   = useRef<any>(null);
+  const tileLayerRef    = useRef<any>(null);
+  const lastCenteredRef = useRef<string | null>(null);
 
-  const onSelectRef = useRef(onSelectAsset);
-  onSelectRef.current = onSelectAsset;
+  const [currentStyle, setCurrentStyle]     = useState<string>("dataviz");
+  const [showPowerLines, setShowPowerLines] = useState<boolean>(true);
+  const [keyMissing, setKeyMissing]         = useState<boolean>(!MAPTILER_KEY);
+
+  // Keep callbacks in refs so marker event closures never go stale
+  const onSelectRef  = useRef(onSelectAsset);
+  const onInspectRef = useRef(onInspectAsset);
+  onSelectRef.current  = onSelectAsset;
+  onInspectRef.current = onInspectAsset;
 
   const selectedRef = useRef(selectedAssetId);
   selectedRef.current = selectedAssetId;
 
-  // Initialize Map safely (fixing "Map container is already initialized" error)
+  // ── Map Initialisation ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Destroy existing leaflet instance attached to DOM element
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
       mapInstanceRef.current = null;
     }
-
     if ((containerRef.current as any)._leaflet_id != null) {
       (containerRef.current as any)._leaflet_id = null;
     }
@@ -84,53 +98,42 @@ export default function GridMap({
     import("leaflet").then((leafletModule) => {
       if (!isMounted || !containerRef.current) return;
       const L = leafletModule.default || leafletModule;
-
       delete (L.Icon.Default.prototype as any)._getIconUrl;
 
       const map = L.map(containerRef.current, {
-        center: [22.8, 71.5], // Gujarat Geographical Center
-        zoom: 7.5,
-        minZoom: 6,
-        maxZoom: 18,
-        zoomControl: true,
+        center:        [22.8, 71.5],
+        zoom:          7.5,
+        minZoom:       6,
+        maxZoom:       18,
+        zoomControl:   true,
         attributionControl: false,
       });
-
       mapInstanceRef.current = map;
 
-      // Base Tile Layer with Carto Dark fallback
-      const baseTile = L.tileLayer(TILE_STYLES[currentStyle].url, {
-        maxZoom: 19,
-        tileSize: 256,
-        errorTileUrl: "https://a.basemaps.cartocdn.com/dark_all/0/0/0.png",
-      }).addTo(map);
+      // Tile layer — fall back to Carto dark on 403/tile error
+      const tileUrl = buildTileUrl(currentStyle);
+      const tileOpts: any = { maxZoom: 19, tileSize: 256 };
+      if (!MAPTILER_KEY) tileOpts.subdomains = "abcd";
+      const tile = L.tileLayer(tileUrl, tileOpts).addTo(map);
+      tileLayerRef.current = tile;
 
-      tileLayerRef.current = baseTile;
-
-      baseTile.on("tileerror", () => {
-        baseTile.setUrl("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png");
+      tile.on("tileerror", () => {
+        if (tileLayerRef.current && !keyMissing) {
+          setKeyMissing(true);
+          tileLayerRef.current.setUrl(CARTO_DARK);
+          (tileLayerRef.current as any).options.subdomains = "abcd";
+        }
       });
 
-      // Layer for Transmission Lines
-      const linesGroup = L.layerGroup().addTo(map);
-      linesLayerRef.current = linesGroup;
-
-      // Layer for Equipment Markers
+      const linesGroup   = L.layerGroup().addTo(map);
       const markersGroup = L.layerGroup().addTo(map);
+      linesLayerRef.current   = linesGroup;
       markersLayerRef.current = markersGroup;
 
-      // Render assets and interconnecting transmission grid lines
       renderMapContent(L, markersGroup, linesGroup, markers, selectedRef.current, showPowerLines);
 
-      // Invalidate layout dimensions safely
-      setTimeout(() => {
-        if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
-      }, 250);
-
-      const handleResize = () => {
-        if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
-      };
-      window.addEventListener("resize", handleResize);
+      setTimeout(() => map.invalidateSize(), 250);
+      window.addEventListener("resize", () => map.invalidateSize());
     });
 
     return () => {
@@ -143,49 +146,46 @@ export default function GridMap({
         (containerRef.current as any)._leaflet_id = null;
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Switch Tile Theme (Satellite Hybrid vs Dark SCADA)
+  // ── Tile style switch ───────────────────────────────────────────────────────
   const changeTileStyle = (styleKey: string) => {
     setCurrentStyle(styleKey);
     if (tileLayerRef.current) {
-      tileLayerRef.current.setUrl(TILE_STYLES[styleKey].url);
+      const url = MAPTILER_KEY ? buildTileUrl(styleKey) : CARTO_DARK;
+      tileLayerRef.current.setUrl(url);
     }
   };
 
-  // Render Markers & Grid Interconnect Lines
+  // ── Marker + line rendering ─────────────────────────────────────────────────
   const renderMapContent = (
     L: any,
     markersGroup: any,
     linesGroup: any,
-    items: typeof markers,
+    items: GridMapMarker[],
     selectedId?: string,
-    drawLines = true
+    drawLines = true,
   ) => {
     if (!markersGroup || !linesGroup) return;
     markersGroup.clearLayers();
     linesGroup.clearLayers();
-
     if (!items || items.length === 0) return;
 
-    // 1. Separate Substations / Power Plants for Transmission Interconnects
-    const substations = items.filter(
+    // Transmission grid lines between substations / power plants
+    const nodes = items.filter(
       (a) =>
         a.asset_type === "substation" ||
         a.asset_type === "power_plant" ||
         a.asset_id.startsWith("SS-") ||
-        a.asset_id.startsWith("PP-")
+        a.asset_id.startsWith("PP-"),
     );
 
-    // 2. Draw High Voltage Grid Transmission Lines between Substations
-    if (drawLines && substations.length > 1) {
-      // Connect geographically nearest substations to simulate GETCO 400kV / 220kV Grid
-      for (let i = 0; i < substations.length; i++) {
-        const s1 = substations[i];
+    if (drawLines && nodes.length > 1) {
+      for (let i = 0; i < nodes.length; i++) {
+        const s1 = nodes[i];
         if (!s1.latitude || !s1.longitude) continue;
-
-        // Find 2 nearest neighbors
-        const neighbors = substations
+        const neighbours = nodes
           .filter((_, idx) => idx !== i)
           .map((s2) => ({
             s2,
@@ -194,244 +194,257 @@ export default function GridMap({
           .sort((a, b) => a.dist - b.dist)
           .slice(0, 2);
 
-        neighbors.forEach(({ s2, dist }) => {
+        neighbours.forEach(({ s2, dist }) => {
           if (dist < 1.8) {
-            // Draw transmission line
-            const line = L.polyline(
-              [
-                [s1.latitude, s1.longitude],
-                [s2.latitude, s2.longitude],
-              ],
-              {
-                color: "#1c69d4",
-                weight: 1.5,
-                opacity: 0.45,
-                dashArray: "4, 6",
-              }
-            );
-            linesGroup.addLayer(line);
+            L.polyline(
+              [[s1.latitude, s1.longitude], [s2.latitude, s2.longitude]],
+              { color: "#1c69d4", weight: 1.5, opacity: 0.4, dashArray: "4 6" },
+            ).addTo(linesGroup);
           }
         });
       }
     }
 
-    // 3. Render Custom Industrial Markers
+    // Individual equipment markers
     items.forEach((asset) => {
       if (!asset.latitude || !asset.longitude) return;
 
-      const risk = (asset.risk_level || "MEDIUM").toUpperCase();
-      const color = riskColor[risk] || riskColor.MEDIUM;
+      const risk       = (asset.risk_level || "MEDIUM").toUpperCase();
+      const color      = riskColor[risk] || riskColor.MEDIUM;
       const isSelected = selectedId === asset.asset_id;
-      const isPowerPlant = asset.asset_type === "power_plant" || asset.asset_id.startsWith("PP-");
-      const isSubstation = asset.asset_type === "substation" || asset.asset_id.startsWith("SS-");
+      const isPP       = asset.asset_type === "power_plant" || asset.asset_id.startsWith("PP-");
+      const isSS       = asset.asset_type === "substation"  || asset.asset_id.startsWith("SS-");
       const isCritical = risk === "CRITICAL";
 
-      // Distinct geometry: Power Plant (large star/hex), Substation (diamond), Transformer (circle)
-      let shapeStyles = "border-radius: 50%;";
-      let size = isSelected ? 20 : 11;
-      let symbolText = "";
+      let shape    = "border-radius:50%;";
+      let size     = isSelected ? 20 : 11;
+      let symbol   = "";
 
-      if (isPowerPlant) {
-        shapeStyles = "border-radius: 3px; transform: rotate(0deg);";
-        size = isSelected ? 24 : 16;
-        symbolText = "⚡";
-      } else if (isSubstation) {
-        shapeStyles = "border-radius: 2px; transform: rotate(45deg);";
-        size = isSelected ? 20 : 13;
+      if (isPP) {
+        shape  = "border-radius:3px;";
+        size   = isSelected ? 24 : 16;
+        symbol = "⚡";
+      } else if (isSS) {
+        shape  = "border-radius:2px;transform:rotate(45deg);";
+        size   = isSelected ? 20 : 13;
       }
 
-      const html = `
-        <div class="custom-grid-marker ${isCritical ? "marker-critical-pulse" : ""} ${isSelected ? "marker-selected" : ""}" 
-             style="width: ${size}px; height: ${size}px; background: ${color}; ${shapeStyles} 
-                    border: ${isSelected ? "3px solid #ffffff" : "2px solid rgba(255,255,255,0.9)"}; 
-                    box-shadow: 0 0 ${isSelected ? "18px" : isPowerPlant ? "12px" : "6px"} ${color}; 
-                    display: flex; align-items: center; justify-content: center; font-size: 9px; cursor: pointer;">
-          ${symbolText}
-        </div>
-      `;
+      const iconHtml = `
+        <div class="cgm ${isCritical ? "cgm-pulse" : ""} ${isSelected ? "cgm-sel" : ""}"
+             style="width:${size}px;height:${size}px;background:${color};${shape}
+                    border:${isSelected ? "3px solid #fff" : "2px solid rgba(255,255,255,0.9)"};
+                    box-shadow:0 0 ${isSelected ? 18 : isPP ? 12 : 6}px ${color};
+                    display:flex;align-items:center;justify-content:center;
+                    font-size:9px;cursor:pointer;">
+          ${symbol}
+        </div>`;
 
       const icon = L.divIcon({
-        className: "leaflet-grid-div-icon",
-        html: html,
-        iconSize: [size, size],
+        className:  "cgm-wrap",
+        html:       iconHtml,
+        iconSize:   [size, size],
         iconAnchor: [size / 2, size / 2],
       });
 
-      const marker = L.marker([asset.latitude, asset.longitude], { icon: icon });
+      const marker = L.marker([asset.latitude, asset.longitude], { icon });
 
-      // Technical Inspector Popup
+      // ── Popup content with Inspect + Dispatch buttons ─────────────────────
+      const failPct   = asset.failure_probability != null
+        ? Math.round(asset.failure_probability * 100)
+        : Math.round(asset.overall_risk_score || 50);
+      const custCount = (asset.customers_served || 0).toLocaleString();
+      const assetType = isPP
+        ? "Power Generation Station"
+        : isSS
+        ? "GETCO Substation"
+        : "Distribution Transformer";
+
       const popupHtml = `
-        <div style="background: #0d0d0d; color: #fff; padding: 12px 14px; font-family: Inter, sans-serif; font-size: 11px; border: 1px solid #3c3c3c; min-width: 170px; box-shadow: 0 12px 32px rgba(0,0,0,0.9);">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
-            <span style="font-weight: 800; font-size: 13px; color: #fff; letter-spacing: 0.04em;">${asset.asset_id}</span>
-            <span style="background: ${color}; color: #fff; font-weight: 800; font-size: 8px; padding: 2px 5px; text-transform: uppercase;">${risk}</span>
+        <div style="background:#0d0d0d;color:#fff;padding:12px 14px;
+                    font-family:Inter,sans-serif;font-size:11px;
+                    border:1px solid #3c3c3c;min-width:200px;
+                    box-shadow:0 12px 32px rgba(0,0,0,0.9);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+            <span style="font-weight:800;font-size:13px;color:#fff;">${asset.asset_id}</span>
+            <span style="background:${color};color:#fff;font-weight:800;font-size:8px;padding:2px 5px;text-transform:uppercase;">${risk}</span>
           </div>
-          <div style="color: #888; font-size: 9px; text-transform: uppercase; margin-bottom: 6px;">
-            ${isPowerPlant ? "🏭 Power Generation Station" : isSubstation ? "⚡ GETCO Substation" : "🔌 Distribution Transformer"}
-          </div>
-          <div style="color: #bbb; font-size: 10px; margin-bottom: 6px; border-bottom: 1px solid #222; padding-bottom: 4px;">
+          <div style="color:#888;font-size:9px;text-transform:uppercase;margin-bottom:6px;">${assetType}</div>
+          <div style="color:#bbb;font-size:10px;margin-bottom:6px;border-bottom:1px solid #222;padding-bottom:4px;">
             ${asset.name || "Gujarat Power Grid"} &bull; ${asset.district || "Gujarat"}
           </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 9px; color: #aaa; margin-bottom: 6px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;color:#aaa;margin-bottom:8px;">
             <div>Capacity: <b style="color:#fff">${asset.capacity_mva || 40} MVA</b></div>
             <div>Voltage: <b style="color:#fff">${asset.voltage_kv || 66} kV</b></div>
-            <div>Risk Score: <b style="color:${color}">${Math.round(asset.overall_risk_score || 50)}%</b></div>
-            <div>Customers: <b style="color:#fff">${(asset.customers_served || 0).toLocaleString()}</b></div>
+            <div>Failure Risk: <b style="color:${color}">${failPct}%</b></div>
+            <div>Customers: <b style="color:#fff">${custCount}</b></div>
           </div>
-          <div style="font-size: 8px; color: #1c69d4; font-weight: 800; text-transform: uppercase; text-align: center; border-top: 1px solid #222; padding-top: 5px; cursor: pointer;">
-            Click to focus & inspect &rarr;
+          <div style="display:flex;gap:6px;">
+            <button
+              data-action="inspect"
+              data-id="${asset.asset_id}"
+              style="flex:1;background:#1c69d4;color:#fff;border:none;cursor:pointer;
+                     font-size:9px;font-weight:800;text-transform:uppercase;padding:5px 0;">
+              🔍 Inspect
+            </button>
+            <button
+              data-action="select"
+              data-id="${asset.asset_id}"
+              style="flex:1;background:#333;color:#fff;border:1px solid #555;cursor:pointer;
+                     font-size:9px;font-weight:800;text-transform:uppercase;padding:5px 0;">
+              Focus
+            </button>
           </div>
-        </div>
-      `;
+        </div>`;
 
       marker.bindPopup(popupHtml, {
-        offset: [0, -size / 2],
+        offset:      [0, -(size / 2)],
         closeButton: false,
-        className: "custom-leaflet-popup",
+        className:   "cgm-popup",
+      });
+
+      // Wire popup button clicks via delegated handler on popup element
+      marker.on("popupopen", (e: any) => {
+        const el = e.popup?.getElement();
+        if (!el) return;
+        el.addEventListener("click", (evt: MouseEvent) => {
+          const btn = (evt.target as HTMLElement).closest("[data-action]") as HTMLElement | null;
+          if (!btn) return;
+          const action = btn.dataset.action;
+          const id     = btn.dataset.id || asset.asset_id;
+          if (action === "inspect" && onInspectRef.current) {
+            onInspectRef.current(id);
+          } else if (action === "select" && onSelectRef.current) {
+            lastCenteredRef.current = null; // explicit focus centers the map
+            onSelectRef.current(id);
+          }
+        });
       });
 
       marker.on("click", () => {
-        lastCenteredAssetIdRef.current = null;
-        if (onSelectRef.current) {
-          onSelectRef.current(asset.asset_id);
-        }
+        if (onSelectRef.current) onSelectRef.current(asset.asset_id);
       });
 
-      marker.on("popupopen", (e: any) => {
-        const popupNode = e.popup?.getElement();
-        if (popupNode) {
-          popupNode.style.cursor = "pointer";
-          popupNode.onclick = (evt: MouseEvent) => {
-            evt.stopPropagation();
-            lastCenteredAssetIdRef.current = null;
-            if (onSelectRef.current) {
-              onSelectRef.current(asset.asset_id);
-            }
-          };
-        }
-      });
-
-      marker.on("mouseover", function (this: any) {
-        this.openPopup();
-      });
+      marker.on("mouseover", function (this: any) { this.openPopup(); });
 
       markersGroup.addLayer(marker);
     });
   };
 
-  const lastCenteredAssetIdRef = useRef<string | null>(null);
-
-  // Update markers when props change and fly to selected asset ONLY when selection changes
+  // ── Re-render markers whenever data/selection changes ──────────────────────
   useEffect(() => {
     if (!mapInstanceRef.current || !markersLayerRef.current) return;
     import("leaflet").then((leafletModule) => {
       const L = leafletModule.default || leafletModule;
-      renderMapContent(L, markersLayerRef.current, linesLayerRef.current, markers, selectedAssetId, showPowerLines);
+      renderMapContent(
+        L,
+        markersLayerRef.current,
+        linesLayerRef.current,
+        markers,
+        selectedAssetId,
+        showPowerLines,
+      );
 
       if (
         selectedAssetId &&
-        selectedAssetId !== lastCenteredAssetIdRef.current &&
-        markers &&
+        selectedAssetId !== lastCenteredRef.current &&
         markers.length > 0
       ) {
-        lastCenteredAssetIdRef.current = selectedAssetId;
+        lastCenteredRef.current = selectedAssetId;
         const target = markers.find((m) => m.asset_id === selectedAssetId);
-        if (target && target.latitude && target.longitude) {
+        if (target?.latitude && target?.longitude) {
           mapInstanceRef.current.flyTo([target.latitude, target.longitude], 11.5, {
-            animate: true,
-            duration: 1.2,
+            animate: true, duration: 1.2,
           });
         }
       }
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markers, selectedAssetId, showPowerLines]);
 
+  // ── Legend items ────────────────────────────────────────────────────────────
+  const legendItems = [
+    { label: "Critical", color: riskColor.CRITICAL },
+    { label: "High",     color: riskColor.HIGH },
+    { label: "Medium",   color: riskColor.MEDIUM },
+    { label: "Low",      color: riskColor.LOW },
+  ];
+
   return (
-    <div className="w-full h-full relative bg-[#0a0a0a] overflow-hidden" style={{ minHeight: "100%", width: "100%" }}>
+    <div className="w-full h-full relative bg-[#edebe9] overflow-hidden">
+      {/* ── Global marker CSS ───────────────────────────────────────────── */}
       <style jsx global>{`
-        @keyframes criticalPulse {
-          0% {
-            box-shadow: 0 0 0 0 rgba(226, 39, 24, 0.9), 0 0 8px #e22718;
-          }
-          70% {
-            box-shadow: 0 0 0 14px rgba(226, 39, 24, 0), 0 0 12px #e22718;
-          }
-          100% {
-            box-shadow: 0 0 0 0 rgba(226, 39, 24, 0), 0 0 8px #e22718;
-          }
+        @keyframes cgmPulse {
+          0%   { box-shadow: 0 0 0 0   rgba(226,39,24,0.9), 0 0 8px #e22718; }
+          70%  { box-shadow: 0 0 0 14px rgba(226,39,24,0),   0 0 12px #e22718; }
+          100% { box-shadow: 0 0 0 0   rgba(226,39,24,0),   0 0 8px #e22718; }
         }
-        .marker-critical-pulse {
-          animation: criticalPulse 1.8s infinite !important;
+        .cgm-pulse { animation: cgmPulse 1.8s infinite !important; }
+        .cgm-sel   { transform: scale(1.4) !important; z-index: 1000 !important; }
+        .cgm-wrap  { background: transparent !important; border: none !important; }
+        .cgm-popup .leaflet-popup-content-wrapper {
+          background: transparent !important; padding: 0 !important;
+          border-radius: 0 !important; box-shadow: none !important;
         }
-        .marker-selected {
-          transform: scale(1.4) !important;
-          z-index: 1000 !important;
-        }
-        .leaflet-grid-div-icon {
-          background: transparent !important;
-          border: none !important;
-        }
-        .custom-leaflet-popup .leaflet-popup-content-wrapper {
-          background: transparent !important;
-          padding: 0 !important;
-          border-radius: 0 !important;
-          box-shadow: none !important;
-        }
-        .custom-leaflet-popup .leaflet-popup-content {
-          margin: 0 !important;
-          line-height: normal !important;
-        }
-        .custom-leaflet-popup .leaflet-popup-tip {
-          background: #0d0d0d !important;
-          border: 1px solid #3c3c3c !important;
-        }
-        .leaflet-container {
-          background: #0a0a0a !important;
-          font-family: inherit !important;
-        }
+        .cgm-popup .leaflet-popup-content { margin: 0 !important; line-height: normal !important; }
+        .cgm-popup .leaflet-popup-tip { background: #0d0d0d !important; border: 1px solid #3c3c3c !important; }
+        .leaflet-container { background: #0a0a0a !important; font-family: inherit !important; }
       `}</style>
 
-      {/* Floating Modern Map Controls (Satellite vs Dark SCADA + Transmission Lines Toggle) */}
-      <div className="absolute top-3 right-3 z-[1000] flex items-center gap-2 bg-[#0c0c0c]/90 border border-[#3c3c3c] p-1.5 backdrop-blur-md">
-        <span className="text-[9px] text-[#888] font-bold uppercase px-1">Layers:</span>
-        <button
-          onClick={() => changeTileStyle("dataviz")}
-          className={`px-2 py-1 text-[9px] font-bold uppercase transition-colors ${
-            currentStyle === "dataviz" ? "bg-[#1c69d4] text-white" : "bg-[#1a1a1a] text-[#888] hover:text-white"
-          }`}
+      {/* ── Missing key banner ─────────────────────────────────────────── */}
+      {keyMissing && (
+        <div
+          className="absolute top-0 left-0 right-0 z-[1001] text-center py-1 text-[9px] font-bold uppercase tracking-widest"
+          style={{ background: "#1a1a1a", color: "#f4b400", borderBottom: "1px solid #333" }}
         >
-          🌑 Dark SCADA
-        </button>
-        <button
-          onClick={() => changeTileStyle("hybrid")}
-          className={`px-2 py-1 text-[9px] font-bold uppercase transition-colors ${
-            currentStyle === "hybrid" ? "bg-[#1c69d4] text-white" : "bg-[#1a1a1a] text-[#888] hover:text-white"
-          }`}
-        >
-          🛰️ Satellite Aerial
-        </button>
-        <button
-          onClick={() => changeTileStyle("streets")}
-          className={`px-2 py-1 text-[9px] font-bold uppercase transition-colors ${
-            currentStyle === "streets" ? "bg-[#1c69d4] text-white" : "bg-[#1a1a1a] text-[#888] hover:text-white"
-          }`}
-        >
-          🗺️ Highways
-        </button>
+          NEXT_PUBLIC_MAPTILER_KEY not set — using Carto dark fallback
+        </div>
+      )}
+
+      {/* ── Layer switcher ──────────────────────────────────────────────── */}
+      <div className="absolute top-3 right-3 z-[1000] flex items-center gap-1.5 bg-[#0c0c0c]/90 border border-[#edebe9] p-1.5 backdrop-blur-md">
+        <span className="text-[9px] text-black/58 font-bold uppercase px-1">Layers:</span>
+        {Object.entries(TILE_STYLES).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => changeTileStyle(key)}
+            className={`px-2 py-1 rounded-full transform active:scale-[0.95] transition-all duration-200 ease-out text-[9px] font-bold uppercase transition-colors ${
+              currentStyle === key
+                ? "bg-[#00754A] text-white"
+                : "bg-[#ffffff] text-black/58 hover:text-black/87"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
         <button
           onClick={() => setShowPowerLines(!showPowerLines)}
-          className={`px-2 py-1 text-[9px] font-bold uppercase border border-[#333] transition-colors ${
-            showPowerLines ? "bg-[#0066b1]/30 text-[#1c69d4] border-[#1c69d4]" : "text-[#666]"
+          className={`px-2 py-1 rounded-full transform active:scale-[0.95] transition-all duration-200 ease-out text-[9px] font-bold uppercase border transition-colors ${
+            showPowerLines
+              ? "bg-[#0066b1]/30 text-[#00754A] border-[#00754A]"
+              : "bg-[#ffffff] text-[#666] border-[#edebe9]"
           }`}
         >
-          ⚡ Grid Lines: {showPowerLines ? "ON" : "OFF"}
+          ⚡ Grid {showPowerLines ? "ON" : "OFF"}
         </button>
       </div>
 
+      {/* ── Status legend ───────────────────────────────────────────────── */}
+      <div className="absolute bottom-4 left-3 z-[1000] bg-[#0c0c0c]/90 border border-[#edebe9] p-2 backdrop-blur-md flex flex-col gap-1">
+        {legendItems.map((item) => (
+          <div key={item.label} className="flex items-center gap-1.5">
+            <span
+              className="inline-block w-2.5 h-2.5 rounded-full"
+              style={{ background: item.color }}
+            />
+            <span className="text-[9px] text-black/58 font-bold uppercase">{item.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Leaflet mount point ─────────────────────────────────────────── */}
       <div
         ref={containerRef}
-        className="w-full h-full"
-        style={{ width: "100%", height: "100%", position: "absolute", top: 0, left: 0 }}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
       />
     </div>
   );

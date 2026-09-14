@@ -30,7 +30,9 @@ FEATURE_NAMES = [
     "temperature", "oil_temperature", "vibration", "load_percent",
     "voltage", "current",
     "methane_hydrogen_ratio", "ethylene_ethane_ratio", "acetylene_ethylene_ratio",
-    "thermal_stress_index"
+    "thermal_stress_index",
+    # Weather features — combined per U1 problem statement
+    "wind_speed", "rainfall",
 ]
 
 FAULT_CLASSES = [
@@ -95,24 +97,41 @@ def load_and_prepare_dataset():
         voltage = np.random.choice([11.0, 33.0, 66.0, 132.0, 220.0])
         current = (load_pct / 100.0) * np.random.uniform(200.0, 600.0)
 
+        # Weather features — Gujarat monsoon/cyclone/heat patterns
+        # High wind (>60 km/h) and heavy rain (>50 mm) compound failure risk
+        wind_speed = np.random.choice(
+            [np.random.uniform(0, 20), np.random.uniform(20, 45), np.random.uniform(45, 120)],
+            p=[0.65, 0.25, 0.10]
+        )
+        rainfall = np.random.choice(
+            [np.random.uniform(0, 5), np.random.uniform(5, 30), np.random.uniform(30, 180)],
+            p=[0.60, 0.28, 0.12]
+        )
+
         # Domain Feature Engineering (IEC 60599 / Rogers Ratios)
         ch4_h2 = ch4 / max(h2, 0.1)
         c2h4_c2h6 = c2h4 / max(c2h6, 0.1)
         c2h2_c2h4 = c2h2 / max(c2h4, 0.1)
         thermal_stress = max(0.0, (oil_temp - 45.0) / 45.0)
 
-        # Compute Ground Truth Failure Probability based on physics & Health Index
+        # Compute Ground Truth Failure Probability — now includes weather compound risk
         gas_risk = min(1.0, (h2 / 180.0) * 0.25 + (c2h4 / 120.0) * 0.35 + (c2h2 / 15.0) * 0.5)
         thermal_risk = min(1.0, thermal_stress * 0.6 + (load_pct / 100.0 > 1.0) * 0.4)
         aging_risk = max(0.0, min(1.0, (100.0 - health_idx) / 100.0))
         vib_risk = min(1.0, max(0.0, vibration - 2.0) / 4.0)
+        # Weather risk: high wind + heavy rain = mechanical + insulation compounding
+        weather_risk = min(1.0, (wind_speed / 100.0) * 0.5 + (rainfall / 120.0) * 0.5)
 
-        max_risk = max(gas_risk, thermal_risk, aging_risk, vib_risk)
-        avg_risk = 0.40 * aging_risk + 0.35 * gas_risk + 0.25 * thermal_risk
+        max_risk = max(gas_risk, thermal_risk, aging_risk, vib_risk, weather_risk)
+        avg_risk = (0.35 * aging_risk + 0.30 * gas_risk + 0.20 * thermal_risk
+                    + 0.10 * weather_risk + 0.05 * vib_risk)
         failure_prob = round(float(0.55 * max_risk + 0.45 * avg_risk), 4)
 
         if c2h2 > 15.0 or thermal_stress > 0.85 or (c2h4 > 100 and h2 > 100) or vibration > 5.5:
             failure_prob = max(failure_prob, round(float(np.random.uniform(0.82, 0.98)), 4))
+        # Severe weather also compounds risk
+        if wind_speed > 70.0 or rainfall > 80.0:
+            failure_prob = max(failure_prob, round(float(np.random.uniform(0.60, 0.92)), 4))
 
         failure_prob = max(0.01, min(0.99, failure_prob))
 
@@ -151,6 +170,8 @@ def load_and_prepare_dataset():
             "ethylene_ethane_ratio": c2h4_c2h6,
             "acetylene_ethylene_ratio": c2h2_c2h4,
             "thermal_stress_index": thermal_stress,
+            "wind_speed": wind_speed,
+            "rainfall": rainfall,
             "health_index": health_idx,
             "failure_probability": failure_prob,
             "fault_mode": fault_mode,
@@ -171,72 +192,84 @@ def train():
         X, y_prob, y_fault, test_size=0.20, random_state=42
     )
 
-    # 1. Train Failure Probability Regressor
-    print("\n--- Training XGBoost Failure Probability Regressor ---")
-    regressor = xgb.XGBRegressor(
-        n_estimators=150,
-        max_depth=5,
-        learning_rate=0.05,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        random_state=42,
-        objective="reg:squarederror"
-    )
-    regressor.fit(X_train, y_prob_train)
-    prob_preds = regressor.predict(X_test)
-    mse = mean_squared_error(y_prob_test, prob_preds)
-    r2 = r2_score(y_prob_test, prob_preds)
-    print(f"Regressor Evaluation: RMSE = {np.sqrt(mse):.4f}, R² Score = {r2:.4f}")
+    import mlflow
+    import mlflow.xgboost
 
-    # 2. Train Fault Mode Classifier
-    print("\n--- Training XGBoost Fault Mode Classifier ---")
-    classifier = xgb.XGBClassifier(
-        n_estimators=120,
-        max_depth=4,
-        learning_rate=0.08,
-        random_state=42,
-        objective="multi:softprob",
-        num_class=len(FAULT_CLASSES)
-    )
-    classifier.fit(X_train, y_fault_train)
-    fault_preds = classifier.predict(X_test)
-    acc = accuracy_score(y_fault_test, fault_preds)
-    print(f"Classifier Accuracy = {acc * 100:.2f}%")
+    mlflow.set_experiment("PowerGrid_Failure_Prediction")
 
-    # Feature Importances
-    importances = dict(zip(FEATURE_NAMES, regressor.feature_importances_.astype(float)))
-    sorted_importances = sorted(importances.items(), key=lambda x: x[1], reverse=True)
-    print("\nTop 5 Failure Risk Drivers (Feature Importance):")
-    for feat, imp in sorted_importances[:5]:
-        print(f"  - {feat}: {imp * 100:.2f}%")
+    with mlflow.start_run():
+        # 1. Train Failure Probability Regressor
+        print("\n--- Training XGBoost Failure Probability Regressor ---")
+        reg_params = {
+            "n_estimators": 150, "max_depth": 5, "learning_rate": 0.05,
+            "subsample": 0.8, "colsample_bytree": 0.8, "random_state": 42,
+            "objective": "reg:squarederror"
+        }
+        mlflow.log_params({"reg_" + k: v for k, v in reg_params.items()})
+        
+        regressor = xgb.XGBRegressor(**reg_params)
+        regressor.fit(X_train, y_prob_train)
+        prob_preds = regressor.predict(X_test)
+        mse = mean_squared_error(y_prob_test, prob_preds)
+        r2 = r2_score(y_prob_test, prob_preds)
+        print(f"Regressor Evaluation: RMSE = {np.sqrt(mse):.4f}, R² Score = {r2:.4f}")
+        mlflow.log_metric("rmse", float(np.sqrt(mse)))
+        mlflow.log_metric("r2_score", float(r2))
 
-    # Save artifacts
-    reg_path = os.path.join(ARTIFACTS_DIR, "failure_regressor.joblib")
-    clf_path = os.path.join(ARTIFACTS_DIR, "fault_classifier.joblib")
-    meta_path = os.path.join(ARTIFACTS_DIR, "model_metadata.json")
+        # 2. Train Fault Mode Classifier
+        print("\n--- Training XGBoost Fault Mode Classifier ---")
+        clf_params = {
+            "n_estimators": 120, "max_depth": 4, "learning_rate": 0.08,
+            "random_state": 42, "objective": "multi:softprob",
+            "num_class": len(FAULT_CLASSES)
+        }
+        mlflow.log_params({"clf_" + k: v for k, v in clf_params.items()})
 
-    joblib.dump(regressor, reg_path)
-    joblib.dump(classifier, clf_path)
+        classifier = xgb.XGBClassifier(**clf_params)
+        classifier.fit(X_train, y_fault_train)
+        fault_preds = classifier.predict(X_test)
+        acc = accuracy_score(y_fault_test, fault_preds)
+        print(f"Classifier Accuracy = {acc * 100:.2f}%")
+        mlflow.log_metric("accuracy", float(acc))
 
-    metadata = {
-        "model_version": "v1.0.0-xgb",
-        "algorithm": "XGBoost (Regressor + Multi-class Classifier)",
-        "features": FEATURE_NAMES,
-        "fault_classes": FAULT_CLASSES,
-        "metrics": {
-            "rmse": float(np.sqrt(mse)),
-            "r2_score": float(r2),
-            "accuracy": float(acc),
-        },
-        "feature_importances": dict(sorted_importances),
-        "trained_samples": len(df)
-    }
+        # Feature Importances
+        importances = dict(zip(FEATURE_NAMES, regressor.feature_importances_.astype(float)))
+        sorted_importances = sorted(importances.items(), key=lambda x: x[1], reverse=True)
+        print("\nTop 5 Failure Risk Drivers (Feature Importance):")
+        for feat, imp in sorted_importances[:5]:
+            print(f"  - {feat}: {imp * 100:.2f}%")
 
-    with open(meta_path, "w") as f:
-        json.dump(metadata, f, indent=2)
+        # Save artifacts
+        reg_path = os.path.join(ARTIFACTS_DIR, "failure_regressor.joblib")
+        clf_path = os.path.join(ARTIFACTS_DIR, "fault_classifier.joblib")
+        meta_path = os.path.join(ARTIFACTS_DIR, "model_metadata.json")
 
-    print(f"\nSaved models and metadata to: {ARTIFACTS_DIR}")
-    print("Phase 5 Model Training COMPLETE!")
+        joblib.dump(regressor, reg_path)
+        joblib.dump(classifier, clf_path)
+
+        # Also log models to MLflow
+        mlflow.xgboost.log_model(regressor, "failure_regressor")
+        mlflow.xgboost.log_model(classifier, "fault_classifier")
+
+        metadata = {
+            "model_version": "v1.0.0-xgb",
+            "algorithm": "XGBoost (Regressor + Multi-class Classifier)",
+            "features": FEATURE_NAMES,
+            "fault_classes": FAULT_CLASSES,
+            "metrics": {
+                "rmse": float(np.sqrt(mse)),
+                "r2_score": float(r2),
+                "accuracy": float(acc),
+            },
+            "feature_importances": dict(sorted_importances),
+            "trained_samples": len(df)
+        }
+
+        with open(meta_path, "w") as f:
+            json.dump(metadata, f, indent=2)
+
+        print(f"\nSaved models and metadata to: {ARTIFACTS_DIR}")
+        print("Phase 5 Model Training COMPLETE!")
 
 
 if __name__ == "__main__":

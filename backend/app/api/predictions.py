@@ -26,6 +26,9 @@ class PredictRequest(BaseModel):
     load_percent: Optional[float] = None
     voltage: Optional[float] = None
     current: Optional[float] = None
+    # Weather features — combined per U1 problem statement
+    wind_speed: Optional[float] = None
+    rainfall: Optional[float] = None
 
 
 @router.get("/model-info")

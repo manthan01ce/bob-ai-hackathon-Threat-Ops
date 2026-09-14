@@ -72,6 +72,10 @@ def predict_failure(telemetry: Dict[str, Any]) -> Dict[str, Any]:
     voltage = float(telemetry.get("voltage", 33.0) or 33.0)
     current = float(telemetry.get("current", 350.0) or 350.0)
 
+    # Weather features — fetched from live API or passed in telemetry payload
+    wind_speed = float(telemetry.get("wind_speed", 10.0) or 10.0)
+    rainfall = float(telemetry.get("rainfall", 0.0) or 0.0)
+
     # Derived domain features
     ch4_h2 = ch4 / max(h2, 0.1)
     c2h4_c2h6 = c2h4 / max(c2h6, 0.1)
@@ -99,6 +103,8 @@ def predict_failure(telemetry: Dict[str, Any]) -> Dict[str, Any]:
         "ethylene_ethane_ratio": c2h4_c2h6,
         "acetylene_ethylene_ratio": c2h2_c2h4,
         "thermal_stress_index": thermal_stress,
+        "wind_speed": wind_speed,
+        "rainfall": rainfall,
     }
 
     df_in = pd.DataFrame([input_data])[features_list]
@@ -117,6 +123,10 @@ def predict_failure(telemetry: Dict[str, Any]) -> Dict[str, Any]:
 
     if vibration >= 5.5:
         prob = max(prob, min(0.95, 0.78 + (vibration - 5.5) * 0.08))
+
+    # Weather compound calibration
+    if wind_speed >= 70.0 or rainfall >= 80.0:
+        prob = max(prob, min(0.95, 0.62 + (wind_speed / 200.0) * 0.18 + (rainfall / 200.0) * 0.12))
 
     prob = max(0.01, min(0.99, round(prob, 4)))
 
@@ -142,15 +152,41 @@ def predict_failure(telemetry: Dict[str, Any]) -> Dict[str, Any]:
         risk_window = "7d"
         risk_level = "LOW"
 
-    # Top drivers calculation
-    feat_imps = _metadata.get("feature_importances", {})
+    # SHAP local explanation
     drivers = []
-    for feat, imp in list(feat_imps.items())[:4]:
-        drivers.append({
-            "feature": feat,
-            "value": round(float(input_data.get(feat, 0.0)), 2),
-            "weight": round(float(imp), 3)
-        })
+    try:
+        import shap
+        explainer = shap.TreeExplainer(_regressor)
+        shap_values = explainer.shap_values(df_in)
+        shap_vals = shap_values[0]
+        
+        feature_contributions = []
+        for i, feat in enumerate(features_list):
+            feature_contributions.append({
+                "feature": feat,
+                "value": round(float(input_data.get(feat, 0.0)), 2),
+                "contribution": float(shap_vals[i])
+            })
+            
+        # Sort by absolute contribution to find top drivers
+        feature_contributions.sort(key=lambda x: abs(x["contribution"]), reverse=True)
+        
+        for fc in feature_contributions[:5]:
+            drivers.append({
+                "feature": fc["feature"],
+                "value": fc["value"],
+                "weight": round(abs(fc["contribution"]), 4),
+                "shap_impact": round(fc["contribution"], 4)
+            })
+    except ImportError:
+        feat_imps = _metadata.get("feature_importances", {})
+        for feat, imp in list(feat_imps.items())[:4]:
+            drivers.append({
+                "feature": feat,
+                "value": round(float(input_data.get(feat, 0.0)), 2),
+                "weight": round(float(imp), 3),
+                "shap_impact": 0.0
+            })
 
     # Action recommendation
     if risk_level == "CRITICAL":

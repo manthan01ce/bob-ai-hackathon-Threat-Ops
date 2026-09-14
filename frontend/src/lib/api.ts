@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api";
 
 export async function fetchSummary() {
   const res = await fetch(`${API_BASE}/dashboard/summary`);
@@ -119,3 +119,15 @@ export async function fetchSensorStream(limit: number = 50) {
 
 
 
+
+export async function fetchLiveWeather() {
+  const res = await fetch(`${(process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api")}/weather/live`);
+  if (!res.ok) throw new Error("Failed to fetch live weather");
+  return res.json();
+}
+
+export async function fetchCrewPositioning() {
+  const res = await fetch(`${(process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api")}/weather/crew-positioning`);
+  if (!res.ok) throw new Error("Failed to fetch crew positioning");
+  return res.json();
+}

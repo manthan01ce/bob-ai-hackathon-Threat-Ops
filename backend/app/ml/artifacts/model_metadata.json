@@ -21,7 +21,9 @@
     "methane_hydrogen_ratio",
     "ethylene_ethane_ratio",
     "acetylene_ethylene_ratio",
-    "thermal_stress_index"
+    "thermal_stress_index",
+    "wind_speed",
+    "rainfall"
   ],
   "fault_classes": [
     "Normal / Low Risk",
@@ -32,31 +34,33 @@
     "Arcing / Partial Discharge"
   ],
   "metrics": {
-    "rmse": 0.05277737975252651,
-    "r2_score": 0.6404054697847629,
-    "accuracy": 0.98125
+    "rmse": 0.0757244253657584,
+    "r2_score": 0.748134287140245,
+    "accuracy": 0.9875
   },
   "feature_importances": {
-    "acetylene": 0.26068198680877686,
-    "vibration": 0.13268621265888214,
-    "ethylene": 0.10019409656524658,
-    "oil_temperature": 0.10009066015481949,
-    "temperature": 0.06389505416154861,
-    "acetylene_ethylene_ratio": 0.04974179342389107,
-    "hydrogen": 0.042634524405002594,
-    "ethylene_ethane_ratio": 0.04191196337342262,
-    "methane_hydrogen_ratio": 0.027437498793005943,
-    "voltage": 0.025734057649970055,
-    "current": 0.021562092006206512,
-    "water_content": 0.019814763218164444,
-    "thermal_stress_index": 0.01811639778316021,
-    "load_percent": 0.01754610612988472,
-    "ethane": 0.015552149154245853,
-    "co2": 0.014064501039683819,
-    "power_factor": 0.013639862649142742,
-    "dielectric_rigidity": 0.01251736469566822,
-    "methane": 0.011797609739005566,
-    "co": 0.010381312109529972
+    "acetylene": 0.2591101825237274,
+    "oil_temperature": 0.13449861109256744,
+    "vibration": 0.11403372883796692,
+    "acetylene_ethylene_ratio": 0.09806184470653534,
+    "ethylene": 0.052123043686151505,
+    "temperature": 0.0485338531434536,
+    "rainfall": 0.03434505686163902,
+    "thermal_stress_index": 0.030781809240579605,
+    "wind_speed": 0.027858959510922432,
+    "water_content": 0.023000406101346016,
+    "ethylene_ethane_ratio": 0.02051757089793682,
+    "methane": 0.019274286925792694,
+    "power_factor": 0.01754576712846756,
+    "load_percent": 0.017289267852902412,
+    "co2": 0.0162604171782732,
+    "ethane": 0.015412955544888973,
+    "methane_hydrogen_ratio": 0.014511631801724434,
+    "dielectric_rigidity": 0.013721225783228874,
+    "hydrogen": 0.013561706058681011,
+    "current": 0.011561689898371696,
+    "voltage": 0.00925226230174303,
+    "co": 0.008743598125874996
   },
   "trained_samples": 800
 }
