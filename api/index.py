@@ -1,5 +1,6 @@
 import sys
 import os
+from fastapi import Request
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
@@ -13,3 +14,12 @@ if os.path.exists(BACKEND_DIR) and BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
 from app.main import app
+
+@app.get("/debug-path")
+@app.get("/api/debug-path")
+def debug_path(request: Request):
+    return {
+        "url_path": request.url.path,
+        "headers": {k: v for k, v in request.headers.items()},
+        "scope_path": request.scope.get("path")
+    }
