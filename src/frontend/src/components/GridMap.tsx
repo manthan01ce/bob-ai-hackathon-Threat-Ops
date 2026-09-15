@@ -127,14 +127,36 @@ export default function GridMap({
 
       renderMapContent(L, markersGroup, linesGroup, markers, selectedRef.current, showPowerLines);
 
-      setTimeout(() => map.invalidateSize(), 250);
-      window.addEventListener("resize", () => map.invalidateSize());
+      const handleResize = () => {
+        if (isMounted && mapInstanceRef.current && (mapInstanceRef.current as any)._container) {
+          try {
+            mapInstanceRef.current.invalidateSize();
+          } catch (e) {
+            // Ignore container position errors during component unmount
+          }
+        }
+      };
+
+      const timerId = setTimeout(handleResize, 250);
+      window.addEventListener("resize", handleResize);
+
+      (mapInstanceRef.current as any)._cleanupResize = () => {
+        clearTimeout(timerId);
+        window.removeEventListener("resize", handleResize);
+      };
     });
 
     return () => {
       isMounted = false;
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
+        if ((mapInstanceRef.current as any)._cleanupResize) {
+          (mapInstanceRef.current as any)._cleanupResize();
+        }
+        try {
+          mapInstanceRef.current.remove();
+        } catch (e) {
+          // ignore
+        }
         mapInstanceRef.current = null;
       }
       if (containerRef.current) {
