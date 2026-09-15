@@ -1,0 +1,10 @@
+{
+  "name": "threatops",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix src/frontend run build",
+    "dev": "npm --prefix src/frontend run dev",
+    "start": "npm --prefix src/frontend run start"
+  }
+}
