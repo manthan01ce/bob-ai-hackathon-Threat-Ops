@@ -103,6 +103,7 @@ export default function GridMap({
         maxZoom:       18,
         zoomControl:   true,
         attributionControl: false,
+        trackResize:   false,
       });
       mapInstanceRef.current = map;
 
@@ -128,9 +129,18 @@ export default function GridMap({
       renderMapContent(L, markersGroup, linesGroup, markers, selectedRef.current, showPowerLines);
 
       const handleResize = () => {
-        if (isMounted && mapInstanceRef.current && (mapInstanceRef.current as any)._container) {
+        if (
+          isMounted &&
+          containerRef.current &&
+          document.body.contains(containerRef.current) &&
+          mapInstanceRef.current &&
+          (mapInstanceRef.current as any)._loaded &&
+          (mapInstanceRef.current as any)._mapPane &&
+          (mapInstanceRef.current as any)._container &&
+          (mapInstanceRef.current as any)._container.parentNode
+        ) {
           try {
-            mapInstanceRef.current.invalidateSize();
+            mapInstanceRef.current.invalidateSize({ debounceMove: true });
           } catch (e) {
             // Ignore container position errors during component unmount
           }
