@@ -111,3 +111,11 @@ npm run dev
 | `ModuleNotFoundError` | Python venv not activated | Ensure `.\venv\Scripts\activate` was run before starting Uvicorn |
 | `DATABASE_URL connection error` | Network firewall or invalid URI | Verify internet connection for Neon Serverless Postgres or update `DATABASE_URL` in `src/backend/.env` |
 | `npm command not found` | Node.js not installed | Download and install Node.js 18+ from nodejs.org |
+
+---
+
+## 🌐 Cloud Deployment Options
+
+- **Render.com 1-Click Deployment:** See [`docs/render-deployment-guide.md`](render-deployment-guide.md) for 1-Click Blueprint deployment using `render.yaml`.
+- **Vercel Serverless Deployment:** Native Vercel deployment supported out-of-the-box via `vercel.json`.
+
