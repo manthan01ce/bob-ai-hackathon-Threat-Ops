@@ -7,10 +7,15 @@
 
 ## 👥 Team & Hackathon Details
 
-- **Team Name:** ThreatOps Team
+- **Team Name:** PowerGrid AI (ThreatOps)
 - **Hackathon Track:** AI Track (**Bob AI Hackathon**)
-- **Team Lead:** **Manthan Raithatha** (`manthan@example.com`)
-- **Target Infrastructure:** High-Voltage Power Grids & Substations (836+ Monitored Gujarat Grid Assets)
+- **Team Lead:** **Ishika** (`ishika@example.com`)
+- **Team Members:**
+  - **Ishika** [Lead — AI/ML]: Failure Risk Prediction, Anomaly Detection
+  - **Dhriti** [Full-Stack]: Dashboard Development, System Integration
+  - **Manthan** [Grid Intelligence]: Fault Diagnosis, DGA & Thermal Aging
+  - **Abhishek** [Optimization]: Grid Impact & CPI, Crew Pre-Positioning
+- **Target Infrastructure:** High-Voltage Electrical Power Grids — 836+ Monitored Gujarat Grid Assets
 
 ---
 

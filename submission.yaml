@@ -1,21 +1,33 @@
 team:
-  name: "ThreatOps Team" # REQUIRED
+  name: "PowerGrid AI" # REQUIRED
   track: "AI" # REQUIRED (Options: AI | DevOps | Sustainability | Open)
   lead:
-    name: "Manthan" # REQUIRED
-    email: "manthan@example.com" # REQUIRED
+    name: "Ishika" # REQUIRED
+    email: "ishika@example.com" # REQUIRED
   members:
-    - name: "Manthan" # REQUIRED
-      email: "manthan@example.com" # REQUIRED
+    - name: "Ishika"
+      email: "ishika@example.com"
+      role: "Lead — AI/ML (Failure Risk Prediction, Anomaly Detection)"
+    - name: "Dhriti"
+      email: "dhriti@example.com"
+      role: "Full-Stack (Dashboard Development, System Integration)"
+    - name: "Manthan"
+      email: "manthan@example.com"
+      role: "Grid Intelligence (Fault Diagnosis, DGA & Thermal Aging)"
+    - name: "Abhishek"
+      email: "abhishek@example.com"
+      role: "Optimization (Grid Impact & CPI, Crew Pre-Positioning)"
 
 submission:
-  title: "ThreatOps — Predictive Grid Outage & Equipment Failure Advisor" # REQUIRED
+  title: "PowerGrid AI (ThreatOps) — Predictive Grid Outage & Equipment Failure Advisor" # REQUIRED
   problem_statement: > # REQUIRED
-    Power utility operators struggle to predict high-voltage equipment failures (such as transformer DGA gas anomalies and thermal overheating) before outages occur, leading to catastrophic blackout risks, expensive emergency repairs, and prolonged MTTR downtime.
+    High-voltage power transformers fail silently. Dissolved Gas Analysis (DGA) chemistry anomalies accumulate invisibly until catastrophic breakdown, and grid operators face reactive 3+ hour manual investigations across 12+ disconnected SCADA tools.
   solution_summary: > # REQUIRED
-    ThreatOps is an AI-powered decision-support platform for modern electrical grids that ingests multi-sensor telemetry, utilizes an XGBoost machine learning engine to detect insulation and transformer DGA faults with 96.25% accuracy, visualizes 836+ Gujarat grid assets on an interactive GIS map, and automates field crew dispatch before outages happen.
+    PowerGrid AI (ThreatOps) is an AI-powered decision-support platform that ingests multi-sensor grid telemetry, diagnoses transformer DGA gas chemistry using machine learning (96.25% XGBoost accuracy across 6 fault modes with SHAP attribution and physical safety overrides), visualizes statewide Gujarat grid health across 836+ assets, and automates field crew dispatch before outages occur.
   key_features: # REQUIRED
+    - "22 ML Features including 4 domain-engineered IEC 60599 Rogers Ratios & weather-compound risk features"
     - "96.25% Multi-Class XGBoost Fault Classification (DGA chemistry: C2H2, C2H4, CH4, H2, CO) & SHAP Feature Attribution"
+    - "Physical Safety Override Engine enforcing 6 domain-calibrated threshold rules"
     - "Station-Level DGA Gas Inspector & Interactive Telemetry Simulation Studio with IEC 60599 Compliance Badges"
     - "Statewide Gujarat Grid GIS Map monitoring 836+ high-voltage assets across all 33 districts with MapTiler integration"
     - "Automated Field Crew Dispatching & Dynamic Zone Skill-Level Optimization"
