@@ -1,1 +1,2 @@
-https://threatops-six.vercel.app
+Frontend Web Dashboard: https://threatops-frontend.vercel.app
+Backend API Server:     https://threatops-six.vercel.app/api
