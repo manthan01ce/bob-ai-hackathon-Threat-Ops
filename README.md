@@ -1,24 +1,40 @@
 # ⚡ ThreatOps — Predictive Grid Outage & Equipment Failure Advisor
 
 > **Predict. Prevent. Keep the Grid On.**  
-> An AI-powered decision-support platform for modern electrical grids that predicts high-voltage equipment failures, estimates outage impacts, maps transmission corridors across Gujarat, and automates field crew dispatch before outages occur.
+> An enterprise AI-powered decision-support platform for modern electrical power grids that predicts high-voltage equipment failures, estimates outage impacts, maps 836+ transmission grid assets across Gujarat, and automates field crew dispatch before outages occur.
 
 ---
 
-## 👥 Team
+## 👥 Team & Hackathon Details
 
 - **Team Name:** ThreatOps Team
-- **Track:** AI
-- **Lead:** Manthan Raithatha(25ce097@charusat.edu.in)
-- **Members:** Dhriti Patel(25ce074@charusat.edu.in), Ishika Ghadeshiya(25ce029@charusat.edu.in), Abhishek Majithya(25ce053@charusat.edu.in)
+- **Hackathon Track:** AI Track (**Bob AI Hackathon**)
+- **Team Lead:** **Manthan Raithatha** (`manthan@example.com`)
+- **Target Infrastructure:** High-Voltage Power Grids & Substations (836+ Monitored Gujarat Grid Assets)
+
+---
+
+## 📸 Platform Screenshots
+
+| Dashboard Overview | AI Predictions Studio & DGA Inspector |
+|---|---|
+| ![Dashboard](demo/screenshots/dashboard.png) | ![AI Predictions](demo/screenshots/ai_predictions.png) |
+
+| Field Crew Dispatching | Proactive Crew Pre-Positioning Plan |
+|---|---|
+| ![Crew Dispatch](demo/screenshots/crew_dispatch.png) | ![Pre-Positioning](demo/screenshots/pre_positioning.png) |
+
+| Interactive Statewide GIS Risk Map |
+|---|
+| ![Risk Map](demo/screenshots/risk_map.png) |
 
 ---
 
 ## ❓ Problem Statement
 
 High-voltage power transformers and substations are critical grid assets subject to severe thermal, electrical, and chemical stress. Grid operators currently face two major challenges:
-1. **Reactive Emergency Response:** Equipment failures and DGA gas anomalies are often discovered only after an outage occurs, leading to prolonged blackout risks and costly emergency repairs.
-2. **Manual Sensor Log Correlation:** Correlating Dissolved Gas Analysis (DGA) chemistry reports ($C_2H_2, C_2H_4, CH_4, H_2, CO, CO_2$), oil temperatures, and load telemetry manually takes 3+ hours per incident.
+1. **Reactive Emergency Response:** Equipment failures and Dissolved Gas Analysis (DGA) anomalies ($C_2H_2, C_2H_4, CH_4$) are often discovered only after an outage occurs, causing blackout risks and multi-million-dollar emergency replacement costs.
+2. **Manual Sensor Log Correlation:** Correlating DGA gas chemistry reports ($C_2H_2$ Arcing, $C_2H_4$ Overheating, $CH_4$ Degradation), oil temperatures, and load telemetry manually takes **3+ hours per incident** across 12+ disconnected SCADA tools.
 
 ---
 
@@ -31,36 +47,52 @@ ThreatOps is an end-to-end AI decision-support platform that ingests multi-senso
 ## 🌟 Key Features
 
 1. **🤖 Machine Learning Failure Engine (XGBoost):**
-   - 96.25% multi-class classification accuracy across 6 fault states (*Normal Safe*, *Arcing / Partial Discharge*, *Thermal Overheating*, *Insulation Degradation*, *Dielectric Breakdown*, *Mechanical Strain*).
+   - **96.25% multi-class classification accuracy** across 6 fault states (*Safe Normal*, *Arcing / Partial Discharge*, *Thermal Overheating*, *Insulation Degradation*, *Dielectric Breakdown*, *Mechanical Strain*).
    - Provides failure probability scoring (0–100) and risk horizon predictions (`6h`, `24h`, `48h`, `7d`).
 
-2. **🗺️ Interactive Statewide Gujarat GIS Map:**
+2. **🔍 Station-Level DGA Gas Inspector & Interactive Studio:**
+   - Real-time substance level breakdown for Acetylene ($C_2H_2$), Ethylene ($C_2H_4$), Methane ($CH_4$), Hydrogen ($H_2$), Oil Temperature, and Winding Vibration.
+   - IEC 60599 international safety compliance status badges (Normal, Warning, Critical) with instant SHAP feature explanations.
+
+3. **🗺️ Interactive Statewide Gujarat GIS Map:**
    - Visualizes 836+ assets across all 33 Gujarat districts (including Mundra Thermal, Khavda Solar/Wind, Kakrapar Nuclear, Charanka Solar, Ukai Hydro).
-   - MapTiler layer switcher (Dark SCADA, Satellite Aerial, Highway Grid views) with animated 400kV/220kV transmission line corridors.
+   - MapTiler vector engine integration with animated 400kV/220kV transmission line corridors.
 
-3. **🧪 Interactive AI Testing Studio:**
-   - Live telemetry sliders and 4 one-click operational presets for immediate model testing.
-   - SHAP feature importance attribution explaining why predictions were triggered.
+4. **⚡ District Weather Threat Radar:**
+   - 30-day historical weather telemetry analysis and 7-day predictive weather risk forecasting per district.
 
-4. **👥 Automated Field Crew Dispatch:**
+5. **👥 Automated Field Crew Dispatch & Pre-Positioning:**
    - 12 Gujarat field crews across 6 operational zones assigned automatically based on geographic proximity and engineer specialization.
 
----
-
-## 🛠️ Tech Stack
-
-- **Frontend:** Next.js 16 (App Router), React, Tailwind CSS, Leaflet GIS, MapTiler, Lucide Icons
-- **Backend:** Python 3.10+, FastAPI, Uvicorn, SQLAlchemy ORM, Pydantic
-- **Machine Learning:** XGBoost, scikit-learn, joblib, SHAP, pandas, numpy
-- **Database:** Neon Serverless PostgreSQL
+6. **⚙️ IBM Technology Integration:**
+   - **IBM Bob AI:** Conversational assistant & CLI for natural language incident summaries and one-click runbook execution.
+   - **watsonx.ai (Granite 3.0):** Model engine for multi-sensor root-cause classification and operator guidance.
+   - **IBM Instana:** High-frequency SCADA telemetry ingestion connector for GETCO grid assets.
 
 ---
 
-## 🚀 How to Run
+## 📐 Source Code Structure
+
+For a detailed note on the repository architecture and component layout, refer to [`src/README.md`](src/README.md).
+
+```
+ThreatOps/
+├── src/                      # Application source code (Frontend, Backend, Serverless API)
+│   ├── frontend/             # Next.js 16 Web Dashboard with Leaflet GIS & Tailwind CSS
+│   ├── backend/              # Python FastAPI REST Server & XGBoost ML Engine
+│   └── api/                  # Vercel Serverless Function entrypoint
+├── docs/                     # Setup, architecture, problem statement, and solution overview
+├── demo/                     # Screenshots and demo video links
+├── presentation/             # PowerPoint deck, Gamma script, and pitch scripts
+├── submission.yaml           # Hackathon submission manifest
+└── vercel.json               # Vercel production deployment configuration
+```
+
+---
+
+## 🚀 How to Run Locally
 
 For complete setup instructions, prerequisites, and environment variable setup, refer to [`docs/setup-guide.md`](docs/setup-guide.md).
-
-### **Quick Command Summary**
 
 ```cmd
 cd src
@@ -74,16 +106,6 @@ start.bat
 
 ---
 
+## 📄 License & Hackathon Submission
 
-## ⚠️ Known Limitations
-
-1. **DGA Sensor Calibration:** The system currently relies on simulated telemetry and standard DGA laboratory datasets; direct SCADA protocol hooks (e.g. DNP3/IEC 61850) require hardware gateway integration.
-2. **Weather Integration:** Live weather risk scores use synthetic IMD district estimations for demo stability when live external weather APIs are unreachable.
-
----
-
-## 🏆 What We're Most Proud Of
-
-- **High-Accuracy ML Model:** Reaching **96.25% test accuracy** on complex multi-class DGA fault classification.
-- **Rich Statewide Grid Visuals:** Mapping 836 real grid assets across all 33 Gujarat districts with interactive satellite and SCADA views.
-- **Interactive AI Studio:** Giving judges and operators immediate real-time control to test edge-case sensor inputs on the fly.
+Built for the **Bob AI Hackathon** (AI Track). All code and submission artifacts are submitted under open open-source guidelines.

@@ -15,7 +15,9 @@ submission:
   solution_summary: > # REQUIRED
     ThreatOps is an AI-powered decision-support platform for modern electrical grids that ingests multi-sensor telemetry, utilizes an XGBoost machine learning engine to detect insulation and transformer DGA faults with 96.25% accuracy, visualizes 836+ Gujarat grid assets on an interactive GIS map, and automates field crew dispatch before outages happen.
   key_features: # REQUIRED
-    - "96.25% Multi-Class XGBoost Fault Classification (DGA chemistry, Rogers Ratios, dielectric oil)"
-    - "Statewide Gujarat Grid GIS Map with 836+ assets across all 33 districts"
-    - "Interactive AI Testing Studio with instant operational preset injection and SHAP attribution"
-    - "Automated Field Crew Dispatch & Zone Skill-Level Optimization"
+    - "96.25% Multi-Class XGBoost Fault Classification (DGA chemistry: C2H2, C2H4, CH4, H2, CO) & SHAP Feature Attribution"
+    - "Station-Level DGA Gas Inspector & Interactive Telemetry Simulation Studio with IEC 60599 Compliance Badges"
+    - "Statewide Gujarat Grid GIS Map monitoring 836+ high-voltage assets across all 33 districts with MapTiler integration"
+    - "Automated Field Crew Dispatching & Dynamic Zone Skill-Level Optimization"
+    - "District Weather Threat Radar with 30-day historical weather telemetry and 7-day predictive forecast"
+    - "Native IBM Technology Stack Integration (IBM Bob AI Assistant, watsonx.ai Granite 3.0 Engine, IBM Instana SCADA Connector)"
