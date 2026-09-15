@@ -1,4 +1,4 @@
-# Setup Guide — Running ThreatOps Locally
+# Setup Guide — Running PowerGrid Ai Locally
 
 This guide provides exact steps to install and run the **ThreatOps** project on a local machine for testing and evaluation.
 
