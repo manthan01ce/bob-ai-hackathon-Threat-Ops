@@ -7,14 +7,14 @@
 
 ## 👥 Team & Hackathon Details
 
-- **Team Name:** PowerGrid AI (ThreatOps)
+- **Team Name:** ThreatOps
 - **Hackathon Track:** AI Track (**Bob AI Hackathon**)
 - **Team Lead:** **Ishika** (`ishika@example.com`)
 - **Team Members:**
-  - **Ishika** [Lead — AI/ML]: Failure Risk Prediction, Anomaly Detection
-  - **Dhriti** [Full-Stack]: Dashboard Development, System Integration
-  - **Manthan** [Grid Intelligence]: Fault Diagnosis, DGA & Thermal Aging
-  - **Abhishek** [Optimization]: Grid Impact & CPI, Crew Pre-Positioning
+  - **Ishika(25ce029@charusat.edu.in)** [Lead — AI/ML]: Failure Risk Prediction, Anomaly Detection
+  - **Dhriti(25ce074@charusat.edu.in)** [Full-Stack]: Dashboard Development, System Integration
+  - **Manthan(25ce097@charusat.edu.in)** [Grid Intelligence]: Fault Diagnosis, DGA & Thermal Aging
+  - **Abhishek(25ce053@charusat.edu.in)** [Optimization]: Grid Impact & CPI, Crew Pre-Positioning
 - **Target Infrastructure:** High-Voltage Electrical Power Grids — 836+ Monitored Gujarat Grid Assets
 
 ---
