@@ -2,7 +2,7 @@ import sys
 import os
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, "..", ".."))
+ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
 
 SRC_BACKEND = os.path.join(ROOT_DIR, "src", "backend")
 BACKEND_DIR = os.path.join(ROOT_DIR, "backend")
