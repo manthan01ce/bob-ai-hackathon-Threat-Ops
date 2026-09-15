@@ -1,4 +1,4 @@
-# Solution Overview — PowerGrid Ai AI Grid Advisor
+# Solution Overview — PowerGrid Ai Grid Advisor
 
 ## 💡 Overview
 
