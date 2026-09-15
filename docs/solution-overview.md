@@ -1,4 +1,4 @@
-# Solution Overview — ThreatOps AI Grid Advisor
+# Solution Overview — PowerGrid Ai AI Grid Advisor
 
 ## 💡 Overview
 
