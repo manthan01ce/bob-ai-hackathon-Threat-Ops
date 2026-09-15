@@ -9,8 +9,8 @@
 
 - **Team Name:** ThreatOps Team
 - **Track:** AI
-- **Lead:** Manthan (manthan@example.com)
-- **Members:** Manthan (manthan@example.com)
+- **Lead:** Manthan Raithatha(25ce097@charusat.edu.in)
+- **Members:** Dhriti Patel(25ce074@charusat.edu.in), Ishika Ghadeshiya(25ce029@charusat.edu.in), Abhishek Majithya(25ce053@charusat.edu.in)
 
 ---
 
@@ -74,13 +74,6 @@ start.bat
 
 ---
 
-## 🎬 Demo
-
-- **Demo Video:** [`demo/demo-video-link.txt`](demo/demo-video-link.txt)
-- **Live Deployment:** [`demo/live-demo-url.txt`](demo/live-demo-url.txt) (Status: `NOT DEPLOYED`)
-- **Screenshots:** [`demo/screenshots/`](demo/screenshots/)
-
----
 
 ## ⚠️ Known Limitations
 
