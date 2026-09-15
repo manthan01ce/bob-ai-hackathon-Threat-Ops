@@ -47,11 +47,17 @@ def predict_failure(telemetry: Dict[str, Any]) -> Dict[str, Any]:
     Accepts raw or partial sensor readings + DGA data.
     """
     load_models()
-    if _regressor is None or _classifier is None:
-        raise RuntimeError("ML models not trained or loaded.")
-
-    features_list = _metadata.get("features", [])
-    fault_classes = _metadata.get("fault_classes", [])
+    features_list = _metadata.get("features", []) if _metadata else [
+        "hydrogen", "methane", "co", "co2", "ethylene", "ethane", "acetylene",
+        "power_factor", "dielectric_rigidity", "water_content", "temperature",
+        "oil_temperature", "vibration", "load_percent", "voltage", "current",
+        "methane_hydrogen_ratio", "ethylene_ethane_ratio", "acetylene_ethylene_ratio",
+        "thermal_stress_index", "wind_speed", "rainfall"
+    ]
+    fault_classes = _metadata.get("fault_classes", []) if _metadata else [
+        "Normal Operation", "Arcing / Partial Discharge", "Thermal Overheating",
+        "Insulation Degradation", "Dielectric Breakdown", "Mechanical Strain"
+    ]
 
     # Default fallback values for missing fields
     h2 = float(telemetry.get("hydrogen", 25.0) or 25.0)
