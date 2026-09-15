@@ -1,0 +1,69 @@
+name: Validate Submission
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Validate submission.yaml and Required Files
+        run: |
+          python -c "
+          import sys, os, yaml
+
+          # 1. Check submission.yaml existence
+          if not os.path.exists('submission.yaml'):
+              print('❌ FAIL: submission.yaml does not exist')
+              sys.exit(1)
+
+          with open('submission.yaml', 'r') as f:
+              data = yaml.safe_load(f)
+
+          if not data:
+              print('❌ FAIL: submission.yaml is empty or invalid YAML')
+              sys.exit(1)
+
+          # Check required fields
+          team = data.get('team', {})
+          sub = data.get('submission', {})
+
+          req_team = ['name', 'track', 'lead']
+          req_sub = ['title', 'problem_statement', 'solution_summary', 'key_features']
+
+          for f in req_team:
+              if not team.get(f):
+                  print(f'❌ FAIL: Missing required field team.{f}')
+                  sys.exit(1)
+
+          for f in req_sub:
+              if not sub.get(f):
+                  print(f'❌ FAIL: Missing required field submission.{f}')
+                  sys.exit(1)
+
+          # 2. Check docs/setup-guide.md
+          if not os.path.exists('docs/setup-guide.md'):
+              print('❌ FAIL: docs/setup-guide.md does not exist')
+              sys.exit(1)
+
+          # 3. Check demo/demo-video-link.txt
+          if not os.path.exists('demo/demo-video-link.txt'):
+              print('❌ FAIL: demo/demo-video-link.txt does not exist')
+              sys.exit(1)
+
+          print('✅ SUCCESS: All submission requirements validated successfully!')
+          "
