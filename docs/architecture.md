@@ -1,4 +1,4 @@
-# Technical Architecture — ThreatOps
+# Technical Architecture — PowerGrid Ai
 
 ## 🏗️ System Architecture Overview
 
