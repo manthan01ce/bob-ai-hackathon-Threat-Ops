@@ -99,7 +99,7 @@ function MetricTile({
   return (
     <div className="bg-[#ffffff] border border-[#edebe9] p-3 rounded-[12px] shadow-[0_0_0.5px_rgba(0,0,0,0.14),0_1px_1px_rgba(0,0,0,0.24)] flex flex-col gap-0.5">
       <div className="text-[9px] text-[#666] font-bold uppercase tracking-widest">{label}</div>
-      <div className="text-lg font-black" style={{ color: color || "#fff" }}>{value}</div>
+      <div className="text-lg font-black" style={{ color: color || "#1a1a1a" }}>{value}</div>
       {sub && <div className="text-[9px] text-black/58">{sub}</div>}
     </div>
   );
@@ -197,7 +197,7 @@ export default function TransformerDetailPage() {
   const healthScore   = prediction?.health_score ?? (100 - intrinsicRisk);
 
   // ── Assigned crew ──────────────────────────────────────────────────────────
-  const assignedCrew    = crews.find((c) => !c.available);   // simplified heuristic
+  const assignedCrew    = crews.find((c) => !c.available && (c.dispatched_asset_id === id || c.assigned_asset_id === id));
   const availableCrews  = crews.filter((c) => c.available);
 
   // ── Loading / error states ─────────────────────────────────────────────────

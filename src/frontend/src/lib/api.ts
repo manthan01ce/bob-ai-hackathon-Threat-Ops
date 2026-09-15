@@ -131,3 +131,15 @@ export async function fetchCrewPositioning() {
   if (!res.ok) throw new Error("Failed to fetch crew positioning");
   return res.json();
 }
+
+export async function fetchDistrictWeatherHistory(district: string) {
+  const res = await fetch(`${(process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api")}/weather/district/${district}/history`);
+  if (!res.ok) throw new Error("Failed to fetch district weather history");
+  return res.json();
+}
+
+export async function fetchDistrictWeatherForecast(district: string) {
+  const res = await fetch(`${(process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api")}/weather/district/${district}/forecast`);
+  if (!res.ok) throw new Error("Failed to fetch district weather forecast");
+  return res.json();
+}

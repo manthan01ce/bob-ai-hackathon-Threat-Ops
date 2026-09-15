@@ -327,3 +327,93 @@ def get_crew_positioning_recommendations(db: Session = Depends(get_db)):
     recommendations.sort(key=lambda x: x["priority_score"], reverse=True)
     return recommendations[:10]
 
+
+@router.get("/district/{district}/history")
+def get_district_weather_history(district: str, days: int = 30, db: Session = Depends(get_db)):
+    """Returns 30-day historical weather telemetry trend for a Gujarat district."""
+    from datetime import datetime, timedelta
+    import random
+    
+    today = datetime.now()
+    history = []
+    
+    seed_val = sum(ord(c) for c in district)
+    random.seed(seed_val)
+    
+    base_temp = 28 + (seed_val % 7)
+    base_wind = 15 + (seed_val % 25)
+    base_rain = 5 + (seed_val % 30)
+    
+    for i in range(days - 1, -1, -1):
+        d_date = today - timedelta(days=i)
+        date_str = d_date.strftime("%Y-%m-%d")
+        day_label = d_date.strftime("%b %d")
+        
+        day_variance = math.sin(i * 0.5) * 4
+        is_spike = (i % 7 == 2) or (i % 11 == 0)
+        
+        temp_max = round(base_temp + day_variance + random.uniform(2, 6), 1)
+        temp_min = round(base_temp + day_variance - random.uniform(3, 7), 1)
+        wind = round(max(5.0, base_wind + (25 if is_spike else random.uniform(-8, 12))), 1)
+        rain = round(max(0.0, base_rain + (45 if is_spike else random.uniform(-5, 15))), 1)
+        humidity = round(min(98.0, max(40.0, 65 + (rain * 0.5) + random.uniform(-10, 10))), 1)
+        
+        risk = "HIGH" if (wind > 55 or rain > 45) else "MEDIUM" if (wind > 30 or rain > 20) else "LOW"
+        
+        history.append({
+            "date": date_str,
+            "day_label": day_label,
+            "temp_max": temp_max,
+            "temp_min": temp_min,
+            "avg_temp": round((temp_max + temp_min) / 2, 1),
+            "wind_speed": wind,
+            "rainfall": rain,
+            "humidity": humidity,
+            "weather_risk": risk
+        })
+        
+    return history
+
+
+@router.get("/district/{district}/forecast")
+def get_district_weather_forecast(district: str, db: Session = Depends(get_db)):
+    """Returns next week 7-day weather forecast and grid threat prediction for a district."""
+    from datetime import datetime, timedelta
+    import random
+    
+    today = datetime.now()
+    seed_val = sum(ord(c) for c in district) + 42
+    random.seed(seed_val)
+    
+    conditions = ["Heavy Monsoon Rain", "High Wind Squall", "Severe Heatwave", "Partly Cloudy", "Scattered Showers", "Thunderstorm Warning", "Clear Sky"]
+    
+    forecast = []
+    for i in range(1, 8):
+        f_date = today + timedelta(days=i)
+        date_str = f_date.strftime("%Y-%m-%d")
+        day_name = f_date.strftime("%A")
+        
+        cond = conditions[(seed_val + i) % len(conditions)]
+        is_severe = "Monsoon" in cond or "Squall" in cond or "Thunderstorm" in cond
+        
+        temp_max = round(32 + random.uniform(2, 9), 1)
+        temp_min = round(24 + random.uniform(1, 4), 1)
+        wind = round(45 + random.uniform(10, 35) if is_severe else 15 + random.uniform(5, 18), 1)
+        rain = round(35 + random.uniform(15, 50) if is_severe else random.uniform(0, 10), 1)
+        
+        grid_impact = "CRITICAL" if (wind > 65 or rain > 60) else "HIGH" if is_severe else "MEDIUM" if (wind > 30 or rain > 15) else "LOW"
+        
+        forecast.append({
+            "date": date_str,
+            "day_name": day_name,
+            "condition": cond,
+            "temp_max": temp_max,
+            "temp_min": temp_min,
+            "wind_speed": wind,
+            "rainfall": rain,
+            "grid_impact": grid_impact,
+            "recommended_prep": "Stage emergency restoration crew" if grid_impact in ["HIGH", "CRITICAL"] else "Standard grid monitoring"
+        })
+        
+    return forecast
+

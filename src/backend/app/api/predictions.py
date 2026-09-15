@@ -90,6 +90,11 @@ def get_live_prediction(asset_id: str, db: Session = Depends(get_db)):
         prediction["asset_id"] = asset.asset_id
         prediction["asset_type"] = asset.asset_type
         prediction["asset_name"] = asset.name
+        prediction["district"] = getattr(asset, "district", "Gujarat Grid Zone")
+        prediction["location_name"] = getattr(asset, "location_name", asset.name)
+        prediction["capacity_mw"] = getattr(asset, "capacity_mw", None)
+        prediction["voltage_rating_kv"] = getattr(asset, "voltage_rating_kv", None)
+        prediction["telemetry"] = telemetry
         return prediction
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

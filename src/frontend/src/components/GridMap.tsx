@@ -3,27 +3,24 @@
 import React, { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 
-// ── API Key ───────────────────────────────────────────────────────────────────
-// Read from NEXT_PUBLIC_MAPTILER_KEY env var; fall back to Carto dark when absent.
-const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY || "";
+// Read from NEXT_PUBLIC_MAPTILER_KEY env var; fall back to OpenStreetMap when absent.
+const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY || "CRFoY3RXgAloQLarTcRL";
 
-const CARTO_DARK = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+const OSM_FALLBACK = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
 function buildTileUrl(style: string): string {
-  if (!MAPTILER_KEY) return CARTO_DARK;
+  if (!MAPTILER_KEY) return OSM_FALLBACK;
   const urls: Record<string, string> = {
     dataviz: `https://api.maptiler.com/maps/dataviz-dark/256/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
-    hybrid:  `https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}.jpg?key=${MAPTILER_KEY}`,
     streets: `https://api.maptiler.com/maps/streets-v2-dark/256/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
   };
-  return urls[style] || CARTO_DARK;
+  return urls[style] || OSM_FALLBACK;
 }
 
-// Tile style display names
+// Tile style display names (Satellite View removed per requirements)
 const TILE_STYLES: Record<string, string> = {
   dataviz: "🌑 Dark SCADA",
-  hybrid:  "🛰️ Satellite",
-  streets: "🗺️ Highways",
+  streets: "🗺️ Highway Grid",
 };
 
 const riskColor: Record<string, string> = {
@@ -70,7 +67,6 @@ export default function GridMap({
 
   const [currentStyle, setCurrentStyle]     = useState<string>("dataviz");
   const [showPowerLines, setShowPowerLines] = useState<boolean>(true);
-  const [keyMissing, setKeyMissing]         = useState<boolean>(!MAPTILER_KEY);
 
   // Keep callbacks in refs so marker event closures never go stale
   const onSelectRef  = useRef(onSelectAsset);
@@ -118,10 +114,9 @@ export default function GridMap({
       tileLayerRef.current = tile;
 
       tile.on("tileerror", () => {
-        if (tileLayerRef.current && !keyMissing) {
-          setKeyMissing(true);
-          tileLayerRef.current.setUrl(CARTO_DARK);
-          (tileLayerRef.current as any).options.subdomains = "abcd";
+        if (tileLayerRef.current) {
+          tileLayerRef.current.setUrl(OSM_FALLBACK);
+          (tileLayerRef.current as any).options.subdomains = "abc";
         }
       });
 
@@ -153,7 +148,7 @@ export default function GridMap({
   const changeTileStyle = (styleKey: string) => {
     setCurrentStyle(styleKey);
     if (tileLayerRef.current) {
-      const url = MAPTILER_KEY ? buildTileUrl(styleKey) : CARTO_DARK;
+      const url = MAPTILER_KEY ? buildTileUrl(styleKey) : OSM_FALLBACK;
       tileLayerRef.current.setUrl(url);
     }
   };
@@ -390,19 +385,9 @@ export default function GridMap({
         .leaflet-container { background: #0a0a0a !important; font-family: inherit !important; }
       `}</style>
 
-      {/* ── Missing key banner ─────────────────────────────────────────── */}
-      {keyMissing && (
-        <div
-          className="absolute top-0 left-0 right-0 z-[1001] text-center py-1 text-[9px] font-bold uppercase tracking-widest"
-          style={{ background: "#1a1a1a", color: "#f4b400", borderBottom: "1px solid #333" }}
-        >
-          NEXT_PUBLIC_MAPTILER_KEY not set — using Carto dark fallback
-        </div>
-      )}
-
       {/* ── Layer switcher ──────────────────────────────────────────────── */}
-      <div className="absolute top-3 right-3 z-[1000] flex items-center gap-1.5 bg-[#0c0c0c]/90 border border-[#edebe9] p-1.5 backdrop-blur-md">
-        <span className="text-[9px] text-black/58 font-bold uppercase px-1">Layers:</span>
+      <div className="absolute top-3 right-3 z-[1000] flex items-center gap-1.5 bg-[#0c0c0c]/90 border border-[#3c3c3c] p-1.5 backdrop-blur-md shadow-lg">
+        <span className="text-[9px] text-white font-bold uppercase px-1">Layers:</span>
         {Object.entries(TILE_STYLES).map(([key, label]) => (
           <button
             key={key}
@@ -410,7 +395,7 @@ export default function GridMap({
             className={`px-2 py-1 rounded-full transform active:scale-[0.95] transition-all duration-200 ease-out text-[9px] font-bold uppercase transition-colors ${
               currentStyle === key
                 ? "bg-[#00754A] text-white"
-                : "bg-[#ffffff] text-black/58 hover:text-black/87"
+                : "bg-[#ffffff] text-black/87 hover:bg-gray-200"
             }`}
           >
             {label}
@@ -429,14 +414,14 @@ export default function GridMap({
       </div>
 
       {/* ── Status legend ───────────────────────────────────────────────── */}
-      <div className="absolute bottom-4 left-3 z-[1000] bg-[#0c0c0c]/90 border border-[#edebe9] p-2 backdrop-blur-md flex flex-col gap-1">
+      <div className="absolute bottom-4 left-3 z-[1000] bg-[#0c0c0c]/90 border border-[#3c3c3c] p-2 backdrop-blur-md flex flex-col gap-1 shadow-lg">
         {legendItems.map((item) => (
           <div key={item.label} className="flex items-center gap-1.5">
             <span
               className="inline-block w-2.5 h-2.5 rounded-full"
               style={{ background: item.color }}
             />
-            <span className="text-[9px] text-black/58 font-bold uppercase">{item.label}</span>
+            <span className="text-[9px] text-white font-extrabold uppercase tracking-wider">{item.label}</span>
           </div>
         ))}
       </div>

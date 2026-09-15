@@ -122,6 +122,8 @@ export default function Dashboard() {
   const [simMethane, setSimMethane] = useState<number>(35);
   const [simulating, setSimulating] = useState<boolean>(false);
   const [simResult, setSimResult] = useState<any>(null);
+  const [advisorSearchTerm, setAdvisorSearchTerm] = useState<string>("");
+  const [isAdvisorSearchOpen, setIsAdvisorSearchOpen] = useState<boolean>(false);
 
   // Status State
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -332,6 +334,44 @@ export default function Dashboard() {
       handleSimulate({ temperature: 62, oil_temperature: 58, vibration: 6.8, load_percent: 70, acetylene: 1.2, hydrogen: 30, ethylene: 18, methane: 40 });
     }
   };
+
+  const handleSelectAssetForAdvisor = async (assetId: string) => {
+    setSelectedAssetId(assetId);
+    setSimulating(true);
+    try {
+      const pred = await fetchLivePrediction(assetId);
+      setLivePrediction(pred);
+      setSimResult(pred);
+
+      if (pred.telemetry) {
+        const t = pred.telemetry;
+        if (t.temperature !== undefined) setSimTemp(Math.round(t.temperature));
+        if (t.oil_temperature !== undefined) setSimOilTemp(Math.round(t.oil_temperature));
+        if (t.vibration !== undefined) setSimVibration(Number(t.vibration.toFixed(1)));
+        if (t.load_percent !== undefined) setSimLoad(Math.round(t.load_percent));
+        if (t.acetylene !== undefined) setSimAcetylene(Number(t.acetylene.toFixed(1)));
+        if (t.hydrogen !== undefined) setSimHydrogen(Math.round(t.hydrogen));
+        if (t.ethylene !== undefined) setSimEthylene(Math.round(t.ethylene));
+        if (t.methane !== undefined) setSimMethane(Math.round(t.methane));
+      }
+    } catch (e) {
+      console.error("Failed to load live asset prediction for advisor:", e);
+    } finally {
+      setSimulating(false);
+    }
+  };
+
+  const filteredAdvisorAssets = markers.filter((m) => {
+    if (!advisorSearchTerm) return true;
+    const term = advisorSearchTerm.toLowerCase();
+    return (
+      m.asset_id?.toLowerCase().includes(term) ||
+      m.name?.toLowerCase().includes(term) ||
+      m.location_name?.toLowerCase().includes(term) ||
+      m.district?.toLowerCase().includes(term) ||
+      m.asset_type?.toLowerCase().includes(term)
+    );
+  }).slice(0, 15);
 
   if (isLoading) {
     return (
@@ -618,12 +658,20 @@ export default function Dashboard() {
 
               {/* WEATHER RISK & ADVISORY PANEL */}
               <div className="space-y-4">
-                <div className="bg-[#ffffff] border border-[#edebe9] p-4 rounded-[12px] shadow-[0_0_0.5px_rgba(0,0,0,0.14),0_1px_1px_rgba(0,0,0,0.24)]">
+                <div
+                  onClick={() => router.push(`/weather/${currentWeather?.district || "Ahmedabad"}`)}
+                  className="bg-[#ffffff] border border-[#edebe9] hover:border-[#00754A] p-4 rounded-[12px] shadow-[0_0_0.5px_rgba(0,0,0,0.14),0_1px_1px_rgba(0,0,0,0.24)] cursor-pointer transition-all group"
+                >
                   <div className="flex justify-between items-center mb-2">
-                    <h2 className="text-sm font-bold uppercase">District Weather Threat</h2>
-                    <span className="text-[9px] text-black/58 uppercase">IMD Live Radar</span>
+                    <h2 className="text-sm font-bold uppercase group-hover:text-[#00754A] transition-colors flex items-center gap-1.5">
+                      District Weather Threat
+                      <ChevronRight size={14} className="text-[#00754A]" />
+                    </h2>
+                    <span className="text-[9px] bg-[#00754A]/10 text-[#00754A] font-bold px-2 py-0.5 rounded-full uppercase">
+                      View 30-Day History & 7-Day Forecast &rarr;
+                    </span>
                   </div>
-                  <p className="text-[9px] text-black/58 mb-2">{currentWeather?.district || "Ahmedabad"} Region</p>
+                  <p className="text-[9px] text-black/58 mb-2 font-bold">{currentWeather?.district || "Ahmedabad"} Region &bull; Click to open detailed radar</p>
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <CloudRain size={28} className="text-[#00754A]" />
@@ -632,7 +680,7 @@ export default function Dashboard() {
                         <div className="text-[10px] text-black/58">{currentWeather?.weather_risk_level === "HIGH" ? "High impact on grid assets" : "Low impact expected"}</div>
                       </div>
                     </div>
-                    <div className={`${currentWeather?.weather_risk_level === "HIGH" ? "bg-[#e22718]" : "bg-[#0fa336]"} text-black/87 px-2 py-0.5 rounded-full transform active:scale-[0.95] transition-all duration-200 ease-out font-bold tracking-widest uppercase text-[10px]`}>
+                    <div className={`${currentWeather?.weather_risk_level === "HIGH" ? "bg-[#e22718]" : "bg-[#0fa336]"} text-white px-2.5 py-0.5 rounded-full font-bold tracking-widest uppercase text-[10px]`}>
                       {currentWeather?.weather_risk_level || "LOW"}
                     </div>
                   </div>
@@ -1038,9 +1086,196 @@ export default function Dashboard() {
           <div className="p-5 space-y-4">
             <div className="flex justify-between items-center">
               <div>
-                <h1 className="text-lg font-bold uppercase">XGBoost ML Failure Prediction & Testing Studio</h1>
-                <p className="text-[10px] text-black/58">Trained on Dissolved Gas Analysis (DGA) & Operational Telemetry &bull; 98.12% Accuracy</p>
+                <h1 className="text-lg font-bold uppercase flex items-center gap-2">
+                  <Cpu className="text-[#00754A]" size={20} />
+                  XGBoost ML Failure Prediction & Station Level Advisor
+                </h1>
+                <p className="text-[10px] text-black/58">
+                  Trained on Dissolved Gas Analysis (DGA) Chemistry & Operational Telemetry &bull; 96.25% Accuracy
+                </p>
               </div>
+            </div>
+
+            {/* TRANSFORMER / STATION SEARCH & SUBSTANCE LEVEL INSPECTOR BAR */}
+            <div className="bg-[#ffffff] border border-[#edebe9] p-4 rounded-[12px] shadow-[0_0_0.5px_rgba(0,0,0,0.14),0_1px_1px_rgba(0,0,0,0.24)]">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-3">
+                <div>
+                  <h2 className="text-xs font-bold uppercase flex items-center gap-1.5 text-black/87">
+                    <Search size={14} className="text-[#00754A]" />
+                    Search & Inspect Transformer / Station Levels
+                  </h2>
+                  <p className="text-[9px] text-black/58">
+                    Select or search any of 836+ Gujarat grid transformers/substations to inspect individual substance chemistry (DGA) & telemetry.
+                  </p>
+                </div>
+
+                {/* QUICK ACCORDION CHIPS FOR TOP CRITICAL STATIONS */}
+                <div className="flex flex-wrap gap-1.5">
+                  {(topAssets.length > 0 ? topAssets.slice(0, 5) : markers.slice(0, 5)).map((a) => (
+                    <button
+                      key={a.asset_id}
+                      onClick={() => handleSelectAssetForAdvisor(a.asset_id)}
+                      className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase transition-all duration-200 border ${
+                        selectedAssetId === a.asset_id
+                          ? "bg-[#00754A] text-white border-[#00754A]"
+                          : "bg-[#ffffff] border-[#edebe9] text-black/87 hover:border-[#00754A]"
+                      }`}
+                    >
+                      {a.asset_id} ({a.name || a.asset_type || "Station"})
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* SEARCH INPUT & INTERACTIVE DROPDOWN */}
+              <div className="relative">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-2.5 text-[#888]" size={14} />
+                    <input
+                      type="text"
+                      placeholder="Search transformer by Asset ID (e.g. SS-2216), Name (e.g. Mundra), District (e.g. Kutch)..."
+                      value={advisorSearchTerm}
+                      onChange={(e) => {
+                        setAdvisorSearchTerm(e.target.value);
+                        setIsAdvisorSearchOpen(true);
+                      }}
+                      onFocus={() => setIsAdvisorSearchOpen(true)}
+                      className="w-full bg-[#f8f9fa] border border-[#edebe9] rounded-lg pl-9 pr-4 py-2 text-xs text-black/87 focus:outline-none focus:border-[#00754A]"
+                    />
+                    {advisorSearchTerm && (
+                      <button
+                        onClick={() => {
+                          setAdvisorSearchTerm("");
+                          setIsAdvisorSearchOpen(false);
+                        }}
+                        className="absolute right-3 top-2.5 text-[#888] hover:text-black"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (filteredAdvisorAssets.length > 0) {
+                        handleSelectAssetForAdvisor(filteredAdvisorAssets[0].asset_id);
+                        setIsAdvisorSearchOpen(false);
+                      }
+                    }}
+                    className="bg-[#00754A] hover:bg-[#006241] text-white px-4 py-2 rounded-lg text-xs font-bold uppercase flex items-center gap-1.5"
+                  >
+                    <Search size={14} />
+                    Inspect Station
+                  </button>
+                </div>
+
+                {/* SEARCH RESULTS DROPDOWN MENU */}
+                {isAdvisorSearchOpen && advisorSearchTerm.trim() !== "" && (
+                  <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-[#edebe9] rounded-lg shadow-lg max-h-60 overflow-y-auto divide-y divide-[#edebe9]">
+                    {filteredAdvisorAssets.length > 0 ? (
+                      filteredAdvisorAssets.map((asset) => (
+                        <div
+                          key={asset.asset_id || asset.id}
+                          onClick={() => {
+                            handleSelectAssetForAdvisor(asset.asset_id);
+                            setAdvisorSearchTerm(`${asset.asset_id} - ${asset.name || asset.location_name || asset.district || ""}`);
+                            setIsAdvisorSearchOpen(false);
+                          }}
+                          className="p-2.5 hover:bg-[#f2f0eb] cursor-pointer flex justify-between items-center text-xs"
+                        >
+                          <div>
+                            <span className="font-bold text-[#00754A]">{asset.asset_id}</span>
+                            <span className="ml-2 font-semibold text-black/87">{asset.name || asset.location_name}</span>
+                            <span className="ml-2 text-[10px] text-black/58">({asset.district || "Gujarat"})</span>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase ${
+                            asset.risk_level === "CRITICAL" ? "bg-[#e22718] text-white" : "bg-[#00754A] text-white"
+                          }`}>
+                            {asset.asset_type || "Substation"}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-3 text-xs text-black/58 text-center">No matching transformers or stations found.</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* ACTIVE TRANSFORMER SUBSTANCE & TELEMETRY BREAKDOWN CARD */}
+              {selectedAssetId && (
+                <div className="mt-4 p-3 bg-[#f8f9fa] border border-[#edebe9] rounded-lg">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-2 pb-2 border-b border-[#edebe9]">
+                    <div className="flex items-center gap-2">
+                      <Database size={16} className="text-[#00754A]" />
+                      <span className="text-xs font-bold text-black/87 uppercase">Active Inspected Station:</span>
+                      <span className="text-xs font-black text-[#00754A]">{selectedAssetId}</span>
+                      {livePrediction?.asset_name && (
+                        <span className="text-xs font-semibold text-black/70">- {livePrediction.asset_name}</span>
+                      )}
+                      {livePrediction?.district && (
+                        <span className="text-[10px] text-black/58">({livePrediction.district})</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-black/58">Status:</span>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                        simResult?.risk_level === "CRITICAL" ? "bg-[#e22718] text-white" :
+                        simResult?.risk_level === "HIGH" ? "bg-[#f48c06] text-white" : "bg-[#0fa336] text-white"
+                      }`}>
+                        {simResult?.risk_level || "NORMAL"} RISK
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* SUBSTANCE LEVELS GRID */}
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mt-2">
+                    <div className="bg-white border border-[#edebe9] p-2 rounded text-center">
+                      <div className="text-[8px] text-black/58 uppercase font-bold">Acetylene (C₂H₂)</div>
+                      <div className={`text-sm font-mono font-bold ${simAcetylene >= 10 ? "text-[#e22718]" : "text-black/87"}`}>
+                        {simAcetylene} ppm
+                      </div>
+                      <div className="text-[7px] text-black/50">Arcing Gas (IEC 60599)</div>
+                    </div>
+
+                    <div className="bg-white border border-[#edebe9] p-2 rounded text-center">
+                      <div className="text-[8px] text-black/58 uppercase font-bold">Ethylene (C₂H₄)</div>
+                      <div className={`text-sm font-mono font-bold ${simEthylene >= 100 ? "text-[#f48c06]" : "text-black/87"}`}>
+                        {simEthylene} ppm
+                      </div>
+                      <div className="text-[7px] text-black/50">Thermal Overheating</div>
+                    </div>
+
+                    <div className="bg-white border border-[#edebe9] p-2 rounded text-center">
+                      <div className="text-[8px] text-black/58 uppercase font-bold">Methane (CH₄)</div>
+                      <div className="text-sm font-mono font-bold text-black/87">{simMethane} ppm</div>
+                      <div className="text-[7px] text-black/50">Oil Degradation</div>
+                    </div>
+
+                    <div className="bg-white border border-[#edebe9] p-2 rounded text-center">
+                      <div className="text-[8px] text-black/58 uppercase font-bold">Hydrogen (H₂)</div>
+                      <div className="text-sm font-mono font-bold text-black/87">{simHydrogen} ppm</div>
+                      <div className="text-[7px] text-black/50">Partial Discharge</div>
+                    </div>
+
+                    <div className="bg-white border border-[#edebe9] p-2 rounded text-center">
+                      <div className="text-[8px] text-black/58 uppercase font-bold">Oil Temperature</div>
+                      <div className={`text-sm font-mono font-bold ${simOilTemp >= 80 ? "text-[#e22718]" : "text-black/87"}`}>
+                        {simOilTemp}°C
+                      </div>
+                      <div className="text-[7px] text-black/50">Dielectric Fluid</div>
+                    </div>
+
+                    <div className="bg-white border border-[#edebe9] p-2 rounded text-center">
+                      <div className="text-[8px] text-black/58 uppercase font-bold">Mechanical Vibration</div>
+                      <div className={`text-sm font-mono font-bold ${simVibration >= 5.0 ? "text-[#e22718]" : "text-black/87"}`}>
+                        {simVibration} mm/s
+                      </div>
+                      <div className="text-[7px] text-black/50">Winding Strain</div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-3 gap-4">
