@@ -1,4 +1,4 @@
-# ⚡ ThreatOps — Predictive Grid Outage & Equipment Failure Advisor
+# ⚡ PowerGrid Ai — Predictive Grid Outage & Equipment Failure Advisor
 
 > **Predict. Prevent. Keep the Grid On.**  
 > An enterprise AI-powered decision-support platform for modern electrical power grids that predicts high-voltage equipment failures, estimates outage impacts, maps 836+ transmission grid assets across Gujarat, and automates field crew dispatch before outages occur.
